@@ -1,0 +1,116 @@
+.header {
+  margin-bottom: 2rem;
+}
+
+.header h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.75rem;
+  color: var(--text-color, #1a1a2e);
+}
+
+.metricsRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.metricCard {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+}
+
+.metricLabel {
+  font-size: 0.875rem;
+  color: var(--text-secondary, #64748b);
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+}
+
+.metricValue {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-color, #1a1a2e);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chartsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 992px) {
+  .chartsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chartCard {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.chartCard h2 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  font-size: 1.125rem;
+  color: var(--text-color, #1a1a2e);
+}
+
+.chartContainer {
+  height: 300px;
+  position: relative;
+  width: 100%;
+}
+
+.statsTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.statsTable th, .statsTable td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+
+.statsTable th {
+  color: var(--text-secondary, #64748b);
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.statsTable td {
+  color: var(--text-color, #1a1a2e);
+  font-size: 0.875rem;
+}
+
+.statsTable tr:last-child td {
+  border-bottom: none;
+}
+
+.progressBarContainer {
+  width: 100%;
+  height: 8px;
+  background-color: #f1f5f9;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressBarFill {
+  height: 100%;
+  background-color: var(--primary-color, #16a34a);
+}

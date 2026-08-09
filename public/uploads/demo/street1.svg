@@ -1,0 +1,6 @@
+<svg width="600" height="400" xmlns="http://www.w3.org/2000/svg">
+    <rect width="600" height="400" fill="#f59e0b" rx="8"/>
+    <text x="300" y="170" text-anchor="middle" font-size="80" fill="white">🗃️</text>
+    <text x="300" y="250" text-anchor="middle" font-size="28" fill="white" font-family="Arial, sans-serif" font-weight="bold">Street Waste</text>
+    <text x="300" y="290" text-anchor="middle" font-size="16" fill="rgba(255,255,255,0.7)" font-family="Arial, sans-serif">SmartWaste Demo Image</text>
+  </svg>

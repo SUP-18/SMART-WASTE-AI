@@ -1,0 +1,232 @@
+.report-page {
+  min-height: 100vh;
+  background-color: #f8faf9;
+}
+
+.report-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.progress-tracker {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  padding: 0 1rem;
+}
+
+.step-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 10;
+  width: 60px;
+}
+
+.step-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: white;
+  border: 2px solid var(--border, #e2e8f0);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  margin-bottom: 0.5rem;
+  transition: all 0.3s;
+}
+
+.step-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary, #64748b);
+  text-align: center;
+}
+
+.step-line {
+  position: absolute;
+  top: 18px;
+  left: 60px;
+  width: calc(100vw / 5 - 20px);
+  max-width: 120px;
+  height: 2px;
+  background-color: var(--border, #e2e8f0);
+  z-index: -1;
+}
+
+@media (min-width: 768px) {
+  .step-line {
+    width: 140px;
+  }
+}
+
+.step-indicator.active .step-circle {
+  background-color: var(--primary, #16a34a);
+  border-color: var(--primary, #16a34a);
+  color: white;
+}
+
+.step-indicator.active .step-label {
+  color: var(--primary, #16a34a);
+}
+
+.step-indicator.active .step-line {
+  background-color: var(--primary, #16a34a);
+}
+
+.step-indicator.current .step-circle {
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.2);
+}
+
+.form-card {
+  background: white;
+  border-radius: 16px;
+  padding: 2.5rem;
+  box-shadow: 0 4px 20px -5px rgba(0,0,0,0.05);
+}
+
+.step-content h2 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--text, #1a1a2e);
+}
+
+.upload-zone {
+  border: 2px dashed var(--border, #e2e8f0);
+  border-radius: 12px;
+  padding: 4rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background-color: #f8fafc;
+}
+
+.upload-zone:hover {
+  border-color: var(--primary, #16a34a);
+  background-color: #f0fdf4;
+}
+
+.image-preview-container {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.image-preview {
+  width: 100%;
+  max-height: 400px;
+  object-fit: cover;
+  display: block;
+}
+
+.btn-remove-img {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.btn-remove-img:hover {
+  background: rgba(239, 68, 68, 0.9);
+}
+
+.ai-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 0;
+}
+
+.result-card {
+  background-color: #f8fafc;
+  border: 1px solid var(--border, #e2e8f0);
+  padding: 1.5rem;
+  border-radius: 12px;
+}
+
+.progress-bar-bg {
+  height: 8px;
+  background-color: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background-color: var(--primary, #16a34a);
+  border-radius: 4px;
+  transition: width 1s ease-out;
+}
+
+.thumb-img {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--primary, #16a34a);
+  box-shadow: 0 0 0 3px rgba(22,163,74,0.1);
+}
+
+.radio-group {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+/* Success Step */
+.success-card {
+  background: white;
+  border-radius: 16px;
+  padding: 4rem 2rem;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.score-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--primary, #16a34a);
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 2rem;
+  font-weight: 800;
+  margin: 0 auto 1rem;
+}

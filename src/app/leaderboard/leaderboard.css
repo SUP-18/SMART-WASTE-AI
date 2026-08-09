@@ -1,0 +1,55 @@
+.leaderboard-page {
+  min-height: 100vh;
+  background-color: #f8faf9;
+}
+
+.rank-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 800;
+  font-size: 1rem;
+}
+
+.rank-gold {
+  background: linear-gradient(135deg, #fef08a 0%, #eab308 100%);
+  color: #854d0e;
+  box-shadow: 0 4px 10px rgba(234, 179, 8, 0.3);
+  width: 40px;
+  height: 40px;
+}
+
+.rank-silver {
+  background: linear-gradient(135deg, #e2e8f0 0%, #94a3b8 100%);
+  color: #334155;
+  box-shadow: 0 4px 10px rgba(148, 163, 184, 0.3);
+  width: 36px;
+  height: 36px;
+}
+
+.rank-bronze {
+  background: linear-gradient(135deg, #fed7aa 0%, #f97316 100%);
+  color: #7c2d12;
+  box-shadow: 0 4px 10px rgba(249, 115, 22, 0.3);
+}
+
+.rank-standard {
+  background-color: #f1f5f9;
+  color: #64748b;
+}
+
+.leaderboard-list > div {
+  animation: slideInRight 0.5s ease-out forwards;
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+@keyframes slideInRight {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

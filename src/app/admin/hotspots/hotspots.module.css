@@ -1,0 +1,134 @@
+.header {
+  margin-bottom: 2rem;
+}
+
+.header h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.75rem;
+  color: var(--text-color, #1a1a2e);
+}
+
+.header p {
+  margin: 0;
+  color: var(--text-secondary, #64748b);
+  font-size: 1rem;
+}
+
+.mapContainer {
+  height: 400px;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-color, #e2e8f0);
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  position: relative;
+  z-index: 1;
+}
+
+.statsSummary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.statCard {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.statLabel {
+  font-size: 0.875rem;
+  color: var(--text-secondary, #64748b);
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.statValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-color, #1a1a2e);
+}
+
+.hotspotList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.hotspotCard {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  padding: 1.5rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.hotspotCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  border-color: var(--primary-color, #16a34a);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.areaName {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-color, #1a1a2e);
+  margin: 0;
+}
+
+.activityIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  background: #f8fafc;
+}
+
+.indicatorHigh { color: #ef4444; border: 1px solid #fee2e2; }
+.indicatorMod { color: #f59e0b; border: 1px solid #fef3c7; }
+.indicatorLow { color: #16a34a; border: 1px solid #dcfce7; }
+
+.indicatorHigh::before { content: '🔴'; font-size: 0.6rem; }
+.indicatorMod::before { content: '🟡'; font-size: 0.6rem; }
+.indicatorLow::before { content: '🟢'; font-size: 0.6rem; }
+
+.cardBody {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.dataPoint {
+  display: flex;
+  flex-direction: column;
+}
+
+.dataLabel {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #64748b);
+  margin-bottom: 0.25rem;
+}
+
+.dataValue {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-color, #1a1a2e);
+}

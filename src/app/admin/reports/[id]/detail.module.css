@@ -1,0 +1,243 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary, #64748b);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.backButton:hover {
+  color: var(--text-color, #1a1a2e);
+}
+
+.badges {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.twoColumnLayout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 992px) {
+  .twoColumnLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.card h2 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  font-size: 1.25rem;
+  color: var(--text-color, #1a1a2e);
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  padding-bottom: 0.75rem;
+}
+
+.imageContainer {
+  position: relative;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  aspect-ratio: 16/9;
+  background-color: #f1f5f9;
+}
+
+.imageContainer img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mapContainer {
+  height: 250px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-color, #e2e8f0);
+  z-index: 1;
+}
+
+.detailRow {
+  display: flex;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.detailRow:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.detailLabel {
+  width: 140px;
+  color: var(--text-secondary, #64748b);
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.detailValue {
+  flex: 1;
+  color: var(--text-color, #1a1a2e);
+  font-weight: 500;
+}
+
+.scoreCircle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 auto 1rem;
+  border: 8px solid;
+}
+
+.scoreHigh { border-color: #ef4444; color: #ef4444; }
+.scoreMedium { border-color: #f59e0b; color: #f59e0b; }
+.scoreLow { border-color: #16a34a; color: #16a34a; }
+
+.timeline {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  margin: 2rem 0;
+  padding: 0 1rem;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  top: 15px;
+  left: 30px;
+  right: 30px;
+  height: 2px;
+  background: var(--border-color, #e2e8f0);
+  z-index: 0;
+}
+
+.timelineStep {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 1;
+  gap: 0.5rem;
+}
+
+.timelineDot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid var(--border-color, #e2e8f0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: var(--text-secondary, #64748b);
+}
+
+.timelineStep.active .timelineDot {
+  background: var(--primary-color, #16a34a);
+  border-color: var(--primary-color, #16a34a);
+  color: white;
+}
+
+.timelineStep.completed .timelineDot {
+  background: var(--primary-color, #16a34a);
+  border-color: var(--primary-color, #16a34a);
+  color: white;
+}
+
+.timelineLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary, #64748b);
+}
+
+.timelineStep.active .timelineLabel {
+  color: var(--primary-color, #16a34a);
+}
+
+.actionFormGroup {
+  margin-bottom: 1.5rem;
+}
+
+.actionFormGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--text-color, #1a1a2e);
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.button {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: var(--primary-color, #16a34a);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.button:hover {
+  background-color: var(--primary-dark, #15803d);
+}
+
+.button.warning {
+  background-color: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fcd34d;
+}
+
+.button.warning:hover {
+  background-color: #fef3c7;
+}
