@@ -184,6 +184,26 @@ export default function ReportPage() {
     setLoading(false);
   };
 
+  const isValidLocation = (text) => {
+    const t = text.toLowerCase().trim();
+    if (t.length < 5) return false;
+    
+    // Check for common spam/gibberish
+    const spam = ['bla', 'asdf', 'test', 'dummy', 'fake', 'unknown', 'none', 'null', 'na'];
+    if (spam.some(s => t.includes(s))) return false;
+    
+    // Check if it's just one repeating character (e.g. "aaaaaa")
+    if (/^(.)\1+$/.test(t.replace(/\s/g, ''))) return false;
+    
+    // Check if there are no vowels or no consonants
+    if (!/[aeiouy]/.test(t) || !/[bcdfghjklmnpqrstvwxz]/.test(t)) return false;
+    
+    // Check for too many consecutive consonants (e.g. "hjklmnb")
+    if (/[bcdfghjklmnpqrstvwxz]{5,}/.test(t)) return false;
+    
+    return true;
+  };
+
   const nextStep = () => {
     setErrorMsg('');
     if (step === 1 && imagePreview) {
@@ -192,6 +212,10 @@ export default function ReportPage() {
     } else if (step === 3) {
       if (!locationText.trim()) {
         setErrorMsg('Please enter location details before proceeding.');
+        return;
+      }
+      if (!isValidLocation(locationText)) {
+        setErrorMsg('Please enter a valid, real-world location description.');
         return;
       }
       setStep(4);
