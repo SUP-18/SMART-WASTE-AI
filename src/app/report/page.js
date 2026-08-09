@@ -78,6 +78,8 @@ export default function ReportPage() {
           let urbanGray = 0;    // grays, concrete, asphalt
           let darkDirty = 0;    // dark browns, blacks (waste/dirt)
           let bluesky = 0;      // bright blue sky pixels
+          let pureDark = 0;     // pure black/very dark (terminal, dark mode)
+          let pureWhite = 0;    // pure white (documents, light mode)
 
           for (let i = 0; i < pixels.length; i += 4) {
             const r = pixels[i], g = pixels[i+1], b = pixels[i+2];
@@ -102,6 +104,10 @@ export default function ReportPage() {
             
             // Blue sky
             if (b > 150 && b > r * 1.3 && b > g * 1.1 && sat > 0.2) bluesky++;
+            
+            // Screen/Document
+            if (brightness < 35 && sat < 0.15) pureDark++;
+            if (brightness > 240 && sat < 0.1) pureWhite++;
           }
 
           const greenR = vividGreen / total;
@@ -110,6 +116,8 @@ export default function ReportPage() {
           const urbanR = urbanGray / total;
           const dirtyR = darkDirty / total;
           const skyR = bluesky / total;
+          const darkR = pureDark / total;
+          const whiteR = pureWhite / total;
 
           // Nature/food scene: lots of vivid green + bright vivid colors, low urban tones
           const isNature = greenR > 0.30 && vividR > 0.08 && urbanR < 0.15 && dirtyR < 0.15;
@@ -119,8 +127,10 @@ export default function ReportPage() {
           const isFood = vividR > 0.25 && greenR > 0.15 && urbanR < 0.10;
           // Scenic outdoor (just sky and nature)
           const isScenic = greenR > 0.20 && skyR > 0.15 && urbanR < 0.10 && dirtyR < 0.10;
+          // Screen/Document (mostly pure black or pure white)
+          const isScreen = darkR > 0.50 || whiteR > 0.50;
 
-          resolve({ isLikelyNonWaste: isNature || isSelfie || isFood || isScenic });
+          resolve({ isLikelyNonWaste: isNature || isSelfie || isFood || isScenic || isScreen });
         } catch (e) {
           resolve({ isLikelyNonWaste: false });
         }
@@ -140,7 +150,8 @@ export default function ReportPage() {
       'recipe', 'cooking', 'meal', 'cake', 'pizza',
       'car', 'vehicle', 'laptop', 'phone', 'book', 'toy', 'shirt', 'cloth',
       'sunset', 'sunrise', 'beach', 'mountain', 'holiday', 'vacation',
-      'wedding', 'birthday', 'party', 'baby', 'family'
+      'wedding', 'birthday', 'party', 'baby', 'family',
+      'screenshot', 'screen', 'capture', 'desktop', 'code', 'editor'
     ];
     
     const isNonWasteFile = nonWasteKeywords.some(kw => fileName.includes(kw));
