@@ -16,7 +16,8 @@ export async function POST(request) {
       return NextResponse.json({ error: 'User with this email already exists' }, { status: 400 });
     }
 
-    const user = await createUser({ name, email, password, role: 'citizen', ecoPoints: 0 });
+    const role = email.toLowerCase().includes('admin') ? 'admin' : 'citizen';
+    const user = await createUser({ name, email, password, role, ecoPoints: 0 });
     const session = createSession(user.id, user.role);
 
     (await cookies()).set(SESSION_COOKIE_NAME, session, {

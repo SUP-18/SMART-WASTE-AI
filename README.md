@@ -6,6 +6,17 @@ SmartWaste AI is a web application designed to empower citizens and municipal ad
 
 ---
 
+## 🔑 Demo Credentials for Evaluators
+
+| Role | Email | Password | Destination |
+| :--- | :--- | :--- | :--- |
+| **Admin** | `admin@smartwasteai.com` | `admin123` | Admin Dashboard (`/admin`) |
+| **Citizen** | `demo@citizen.com` | `demo123` | Citizen Portal (`/`) |
+
+> *Note: Any new account registered with an email containing `admin` (e.g. `admin@...`) is automatically granted Admin privileges.*
+
+---
+
 ## 🌟 Key Features
 
 ### 👤 Citizen Portal
@@ -127,6 +138,21 @@ CREATE TABLE IF NOT EXISTS upvotes (
   createdAt TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(reportId, userId)
 );
+```
+
+### Seed Demo Accounts (Supabase SQL Editor)
+After creating the tables above, run this to insert the demo accounts:
+
+```sql
+-- Admin account
+INSERT INTO users (name, email, password, role, "ecoPoints")
+VALUES ('SmartWaste Admin', 'admin@smartwasteai.com', 'admin123', 'admin', 0)
+ON CONFLICT (email) DO NOTHING;
+
+-- Citizen account
+INSERT INTO users (name, email, password, role, "ecoPoints")
+VALUES ('Demo Citizen', 'demo@citizen.com', 'demo123', 'citizen', 0)
+ON CONFLICT (email) DO NOTHING;
 ```
 
 ### Storage Bucket Setup

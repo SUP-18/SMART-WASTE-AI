@@ -44,8 +44,8 @@ function LoginContent() {
       }
       
       if (result.success) {
-        // Redirect based on role if possible, else home
-        if (targetEmail.includes('admin')) {
+        // Redirect based on role
+        if (result.user?.role?.toLowerCase() === 'admin' || targetEmail.includes('admin')) {
           router.push('/admin');
         } else {
           router.push('/');
