@@ -103,9 +103,9 @@ export async function getReports({ status, category, userId, priority, search, s
     if (priority) query = query.eq('priorityLevel', priority);
     if (search) query = query.or(`description.ilike.%${search}%,locationText.ilike.%${search}%,reportId.ilike.%${search}%`);
 
-    if (sort === 'oldest') query = query.order('createdAt', { ascending: true });
+    if (sort === 'oldest') query = query.order('id', { ascending: true });
     else if (sort === 'priority') query = query.order('priorityScore', { ascending: false });
-    else query = query.order('createdAt', { ascending: false });
+    else query = query.order('id', { ascending: false });
 
     query = query.range(offset, offset + limit - 1);
 
@@ -114,6 +114,20 @@ export async function getReports({ status, category, userId, priority, search, s
     
     const formattedReports = (data || []).map(r => ({
       ...r,
+      reportId: r.reportId || r.reportid,
+      userId: r.userId || r.userid,
+      imageUrl: r.imageUrl || r.imageurl,
+      afterImageUrl: r.afterImageUrl || r.afterimageurl,
+      locationText: r.locationText || r.locationtext,
+      priorityScore: r.priorityScore || r.priorityscore,
+      priorityLevel: r.priorityLevel || r.prioritylevel,
+      peopleAffected: r.peopleAffected || r.peopleaffected,
+      locationType: r.locationType || r.locationtype,
+      upvoteCount: r.upvoteCount || r.upvotecount || 0,
+      aiConfidence: r.aiConfidence || r.aiconfidence,
+      resolvedAt: r.resolvedAt || r.resolvedat,
+      createdAt: r.createdAt || r.createdat,
+      updatedAt: r.updatedAt || r.updatedat,
       reporterName: r.users?.name || 'Citizen'
     }));
 

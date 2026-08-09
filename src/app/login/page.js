@@ -60,19 +60,7 @@ function LoginContent() {
     }
   };
 
-  const handleDemoCitizen = () => {
-    setIsRegister(false);
-    setEmail('demo@citizen.com');
-    setPassword('demo123');
-    handleAuth(null, 'demo@citizen.com', 'demo123');
-  };
 
-  const handleDemoAdmin = () => {
-    setIsRegister(false);
-    setEmail('admin@smartwaste.com');
-    setPassword('admin123');
-    handleAuth(null, 'admin@smartwaste.com', 'admin123');
-  };
 
   return (
     <div className="login-page">
@@ -154,40 +142,6 @@ function LoginContent() {
               {loading ? <><Loader2 size={18} className="spin" /> {isRegister ? 'Creating...' : 'Logging in...'}</> : (isRegister ? 'Create Account' : 'Login')}
             </button>
           </form>
-          
-          <div className="demo-accounts-section">
-            <div className="divider">
-              <span>Or try a Demo Account</span>
-            </div>
-            
-            <div className="demo-buttons">
-              <button 
-                type="button" 
-                onClick={handleDemoCitizen} 
-                className="btn btn-outline demo-btn"
-                disabled={loading}
-              >
-                <User size={18} />
-                <div className="demo-text">
-                  <strong>Demo Citizen</strong>
-                  <span>demo@citizen.com</span>
-                </div>
-              </button>
-              
-              <button 
-                type="button" 
-                onClick={handleDemoAdmin} 
-                className="btn btn-outline demo-btn demo-admin-btn"
-                disabled={loading}
-              >
-                <Briefcase size={18} />
-                <div className="demo-text">
-                  <strong>Demo Admin</strong>
-                  <span>admin@smartwaste.com</span>
-                </div>
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>
