@@ -7,7 +7,6 @@ import path from 'path';
 export async function POST(request) {
   try {
     const session = await getSession();
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const formData = await request.formData();
     const file = formData.get('image');

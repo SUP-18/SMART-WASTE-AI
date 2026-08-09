@@ -204,14 +204,47 @@ export async function createReport(reportData) {
     const nextNum = ((latest && latest[0] ? latest[0].id : 0) + 1001);
     const reportId = `#SW-${nextNum}`;
 
-    const newReport = {
-      ...reportData,
-      reportId
+    const row = {
+      reportid: reportId,
+      category: reportData.category || '',
+      description: reportData.description || '',
+      latitude: reportData.latitude || 0,
+      longitude: reportData.longitude || 0,
+      locationtext: reportData.locationText || reportData.locationtext || '',
+      peopleaffected: reportData.peopleAffected || reportData.peopleaffected || '1-5',
+      locationtype: reportData.locationType || reportData.locationtype || 'Public Road',
+      aiconfidence: reportData.aiConfidence ?? reportData.aiconfidence ?? 0.85,
+      userid: reportData.userId || reportData.userid,
+      status: reportData.status || 'Pending',
+      upvotecount: reportData.upvoteCount || reportData.upvotecount || 0,
+      imageurl: reportData.imageUrl || reportData.imageurl || '',
+      priorityscore: reportData.priorityScore || reportData.priorityscore || 50,
+      prioritylevel: reportData.priorityLevel || reportData.prioritylevel || 'Medium',
+      createdat: reportData.createdAt || reportData.createdat || new Date().toISOString(),
+      updatedat: reportData.updatedAt || reportData.updatedat || new Date().toISOString()
     };
 
-    const { data, error } = await supabase.from('reports').insert([newReport]).select().single();
-    if (error) throw error;
-    return data;
+    const { data, error } = await supabase.from('reports').insert([row]).select().single();
+    if (error) {
+      console.error('Supabase createReport insert error:', error);
+      throw error;
+    }
+    
+    return {
+      ...data,
+      id: data.id,
+      reportId: data.reportid || data.reportId || reportId,
+      userId: data.userid || data.userId,
+      imageUrl: data.imageurl || data.imageUrl,
+      afterImageUrl: data.afterimageurl || data.afterImageUrl,
+      locationText: data.locationtext || data.locationText,
+      priorityScore: data.priorityscore || data.priorityScore,
+      priorityLevel: data.prioritylevel || data.priorityLevel,
+      peopleAffected: data.peopleaffected || data.peopleAffected,
+      locationType: data.locationtype || data.locationType,
+      upvoteCount: data.upvotecount || data.upvoteCount || 0,
+      aiConfidence: data.aiconfidence || data.aiConfidence
+    };
   } else {
     const db = getSqliteDb();
     const maxIdRes = db.prepare('SELECT MAX(id) as maxId FROM reports').get();
@@ -238,9 +271,15 @@ export async function createReport(reportData) {
 
 export async function updateReport(id, updateFields) {
   if (isSupabaseConfigured()) {
+    const dbFields = {};
+    for (const [key, value] of Object.entries(updateFields)) {
+      dbFields[key.toLowerCase()] = value;
+    }
+    dbFields['updatedat'] = new Date().toISOString();
+
     const { data, error } = await supabase
       .from('reports')
-      .update({ ...updateFields, updatedAt: new Date().toISOString() })
+      .update(dbFields)
       .eq('id', id)
       .select()
       .single();
@@ -264,8 +303,8 @@ export async function getNotifications(userId) {
     const { data } = await supabase
       .from('notifications')
       .select('*')
-      .eq('userId', userId)
-      .order('createdAt', { ascending: false });
+      .eq('userid', userId)
+      .order('createdat', { ascending: false });
     return data || [];
   } else {
     const db = getSqliteDb();
@@ -275,7 +314,15 @@ export async function getNotifications(userId) {
 
 export async function createNotification({ userId, message, type = 'info', reportId = null }) {
   if (isSupabaseConfigured()) {
-    await supabase.from('notifications').insert([{ userId, message, type, reportId, read: 0 }]);
+    const { error } = await supabase.from('notifications').insert([{
+      userid: userId,
+      message,
+      type,
+      reportid: reportId,
+      read: 0,
+      createdat: new Date().toISOString()
+    }]);
+    if (error) console.error('Supabase createNotification error:', error);
   } else {
     const db = getSqliteDb();
     db.prepare('INSERT INTO notifications (userId, message, type, reportId, read, createdAt) VALUES (?, ?, ?, ?, 0, ?)').run(
@@ -286,7 +333,7 @@ export async function createNotification({ userId, message, type = 'info', repor
 
 export async function markNotificationsAsRead(userId) {
   if (isSupabaseConfigured()) {
-    await supabase.from('notifications').update({ read: 1 }).eq('userId', userId);
+    await supabase.from('notifications').update({ read: 1 }).eq('userid', userId);
   } else {
     const db = getSqliteDb();
     db.prepare('UPDATE notifications SET read = 1 WHERE userId = ?').run(userId);
@@ -298,7 +345,7 @@ export async function markNotificationsAsRead(userId) {
 // -------------------------------------------------------------
 export async function hasUserUpvoted(reportId, userId) {
   if (isSupabaseConfigured()) {
-    const { data } = await supabase.from('upvotes').select('id').eq('reportId', reportId).eq('userId', userId).single();
+    const { data } = await supabase.from('upvotes').select('id').eq('reportid', reportId).eq('userid', userId).single();
     return !!data;
   } else {
     const db = getSqliteDb();
@@ -309,10 +356,11 @@ export async function hasUserUpvoted(reportId, userId) {
 
 export async function addUpvote(reportId, userId) {
   if (isSupabaseConfigured()) {
-    await supabase.from('upvotes').insert([{ reportId, userId }]);
+    const { error } = await supabase.from('upvotes').insert([{ reportid: reportId, userid: userId }]);
+    if (error) console.error('Supabase addUpvote error:', error);
     const report = await getReportById(reportId);
     const newCount = (report?.upvoteCount || 0) + 1;
-    await supabase.from('reports').update({ upvoteCount: newCount }).eq('id', reportId);
+    await supabase.from('reports').update({ upvotecount: newCount }).eq('id', reportId);
     return newCount;
   } else {
     const db = getSqliteDb();

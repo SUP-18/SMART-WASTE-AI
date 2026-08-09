@@ -28,9 +28,11 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const session = await getSession();
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
     const data = await request.json();
+
+    const userId = session?.userId || data.userId;
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { 
       category, description, latitude, longitude, locationText, 
       peopleAffected, locationType, aiConfidence, imageUrl 
@@ -43,11 +45,14 @@ export async function POST(request) {
       longitude: parseFloat(longitude) || 0, 
       locationText: locationText || '',
       peopleAffected: peopleAffected || '1-5', 
-      locationType: locationType || 'Public', 
+      locationType: locationType || 'Public Road', 
       aiConfidence: parseFloat(aiConfidence) || 0,
-      userId: session.userId, status: 'Pending', upvoteCount: 0,
-      imageUrl: imageUrl || 'https://images.unsplash.com/photo-1605600659908-0ef719419d41?w=800&q=80', 
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+      userId: userId,
+      status: 'Pending',
+      upvoteCount: 0,
+      imageUrl: imageUrl || '/uploads/demo/overflowing_bin.jpg', 
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     const priorityResult = calculatePriority(reportData);
@@ -56,30 +61,38 @@ export async function POST(request) {
 
     const report = await createReport(reportData);
 
-    const { reports: activeReports } = await getReports({ limit: 100 });
-    const duplicates = findDuplicates(report, activeReports.filter(r => r.status !== 'Resolved'));
+    let duplicates = [];
+    try {
+      const { reports: activeReports } = await getReports({ limit: 100 });
+      duplicates = findDuplicates(report, (activeReports || []).filter(r => r.status !== 'Resolved'));
+    } catch (dupErr) {
+      console.error('Find duplicates error:', dupErr);
+    }
 
-    await createNotification({
-      userId: session.userId,
-      message: `Your report ${report.reportId} has been successfully submitted.`,
-      type: 'report_created',
-      reportId: report.reportId
-    });
-
-    // Notify all admin users that a new issue was reported
-    const admins = await getAdminUsers();
-    for (const admin of admins) {
+    try {
       await createNotification({
-        userId: admin.id,
-        message: `New report ${report.reportId} (${category || 'Issue'}) reported at ${locationText || 'location'}.`,
-        type: 'new_report',
+        userId: userId,
+        message: `Your report ${report.reportId} has been successfully submitted.`,
+        type: 'report_created',
         reportId: report.reportId
       });
+
+      const admins = await getAdminUsers();
+      for (const admin of admins) {
+        await createNotification({
+          userId: admin.id,
+          message: `New report ${report.reportId} (${category || 'Issue'}) reported at ${locationText || 'location'}.`,
+          type: 'new_report',
+          reportId: report.reportId
+        });
+      }
+    } catch (notifErr) {
+      console.error('Notification creation error:', notifErr);
     }
 
     return NextResponse.json({ report, duplicates });
   } catch (error) {
     console.error('Create report error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }
