@@ -172,7 +172,7 @@ export default function Navbar() {
                       notifications.map((notif) => (
                         <div key={notif.id} className={`notification-item ${!notif.read ? 'unread' : ''}`}>
                           <p>{notif.message}</p>
-                          <span className="notification-time">{formatTimeAgo(notif.createdAt)}</span>
+                          <span className="notification-time">{formatTimeAgo(notif.createdAt || notif.createdat)}</span>
                         </div>
                       ))
                     )}
