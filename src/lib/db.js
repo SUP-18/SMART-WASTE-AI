@@ -172,6 +172,20 @@ export async function getReportById(idOrReportId) {
     if (!data) return null;
     return {
       ...data,
+      reportId: data.reportId || data.reportid,
+      userId: data.userId || data.userid,
+      imageUrl: data.imageUrl || data.imageurl,
+      afterImageUrl: data.afterImageUrl || data.afterimageurl,
+      locationText: data.locationText || data.locationtext,
+      priorityScore: data.priorityScore || data.priorityscore,
+      priorityLevel: data.priorityLevel || data.prioritylevel,
+      peopleAffected: data.peopleAffected || data.peopleaffected,
+      locationType: data.locationType || data.locationtype,
+      upvoteCount: data.upvoteCount || data.upvotecount || 0,
+      aiConfidence: data.aiConfidence || data.aiconfidence,
+      resolvedAt: data.resolvedAt || data.resolvedat,
+      createdAt: data.createdAt || data.createdat,
+      updatedAt: data.updatedAt || data.updatedat,
       reporterName: data.users?.name || 'Citizen'
     };
   } else {
