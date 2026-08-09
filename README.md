@@ -145,12 +145,12 @@ After creating the tables above, run this to insert the demo accounts:
 
 ```sql
 -- Admin account
-INSERT INTO users (name, email, password, role, "ecoPoints")
+INSERT INTO users (name, email, password, role, ecopoints)
 VALUES ('SmartWaste Admin', 'admin@smartwasteai.com', 'admin123', 'admin', 0)
 ON CONFLICT (email) DO NOTHING;
 
 -- Citizen account
-INSERT INTO users (name, email, password, role, "ecoPoints")
+INSERT INTO users (name, email, password, role, ecopoints)
 VALUES ('Demo Citizen', 'demo@citizen.com', 'demo123', 'citizen', 0)
 ON CONFLICT (email) DO NOTHING;
 ```
