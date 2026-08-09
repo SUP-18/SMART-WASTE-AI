@@ -54,34 +54,87 @@ export default function ReportPage() {
     }
   };
 
-  const simulateAI = () => {
+  const analyzeImagePixels = (dataUrl) => {
+    return new Promise((resolve) => {
+      if (!dataUrl) return resolve({ plantRatio: 0, fruitRatio: 0 });
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = dataUrl;
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = 64;
+          canvas.height = 64;
+          ctx.drawImage(img, 0, 0, 64, 64);
+          const imageData = ctx.getImageData(0, 0, 64, 64);
+          const pixels = imageData.data;
+
+          let plantPixels = 0;
+          let fruitPixels = 0;
+          const totalPixels = 64 * 64;
+
+          for (let i = 0; i < pixels.length; i += 4) {
+            const r = pixels[i];
+            const g = pixels[i + 1];
+            const b = pixels[i + 2];
+
+            // Green foliage/plants
+            if (g > r + 15 && g > b + 15 && g > 60) {
+              plantPixels++;
+            }
+            // Tomatoes / Red fruits / Flowers on plants
+            if (r > 130 && g > 70 && b < 100 && (r - b) > 50) {
+              fruitPixels++;
+            }
+          }
+
+          resolve({ plantRatio: plantPixels / totalPixels, fruitRatio: fruitPixels / totalPixels });
+        } catch (e) {
+          resolve({ plantRatio: 0, fruitRatio: 0 });
+        }
+      };
+      img.onerror = () => resolve({ plantRatio: 0, fruitRatio: 0 });
+    });
+  };
+
+  const simulateAI = async () => {
     setLoading(true);
-    setTimeout(() => {
-      let detectedCategory = '';
-      const fileName = image?.name?.toLowerCase() || '';
-      
-      if (fileName.includes('water') || fileName.includes('leak') || fileName.includes('pipe') || fileName.includes('flood') || fileName.includes('sewer') || fileName.includes('drain')) {
-        detectedCategory = 'Water Leakage';
-      } else if (fileName.includes('dump') || fileName.includes('illegal') || fileName.includes('mattress') || fileName.includes('furniture') || fileName.includes('debris')) {
-        detectedCategory = 'Illegal Dumping';
-      } else if (fileName.includes('pothole') || fileName.includes('road') || fileName.includes('crack') || fileName.includes('asphalt') || fileName.includes('tar')) {
-        detectedCategory = 'Pothole';
-      } else if (fileName.includes('light') || fileName.includes('lamp') || fileName.includes('pole') || fileName.includes('animal') || fileName.includes('wire')) {
-        detectedCategory = 'Other';
-      } else if (fileName.includes('street') || fileName.includes('leaf') || fileName.includes('leaves') || fileName.includes('litter') || fileName.includes('plastic') || fileName.includes('bottle')) {
-        detectedCategory = 'Street Waste';
-      } else if (fileName.includes('bin') || fileName.includes('trash') || fileName.includes('garbage') || fileName.includes('overflow') || fileName.includes('dustbin') || fileName.includes('waste')) {
-        detectedCategory = 'Overflowing Bin';
-      } else {
-        // Smart fallback: default to Overflowing Bin for civic/environmental photos
-        detectedCategory = 'Overflowing Bin';
-      }
-      
-      const randomConf = Math.floor(Math.random() * (96 - 88 + 1) + 88);
-      setCategory(detectedCategory);
-      setConfidence(randomConf);
-      setLoading(false);
-    }, 1200);
+    const fileName = image?.name?.toLowerCase() || '';
+    
+    const nonWasteKeywords = [
+      'tomato', 'fruit', 'vegetable', 'plant', 'crop', 'flower', 'garden',
+      'selfie', 'person', 'face', 'cat', 'dog', 'pet', 'food', 'dish',
+      'car', 'vehicle', 'laptop', 'phone', 'book', 'toy', 'shirt', 'cloth'
+    ];
+    
+    const isNonWasteFile = nonWasteKeywords.some(kw => fileName.includes(kw));
+    const { plantRatio, fruitRatio } = await analyzeImagePixels(imagePreview);
+
+    let detectedCategory = '';
+
+    if (isNonWasteFile || (plantRatio + fruitRatio) > 0.25) {
+      detectedCategory = 'Unrecognized';
+    } else if (fileName.includes('water') || fileName.includes('leak') || fileName.includes('pipe') || fileName.includes('flood') || fileName.includes('sewer') || fileName.includes('drain')) {
+      detectedCategory = 'Water Leakage';
+    } else if (fileName.includes('dump') || fileName.includes('illegal') || fileName.includes('mattress') || fileName.includes('furniture') || fileName.includes('debris')) {
+      detectedCategory = 'Illegal Dumping';
+    } else if (fileName.includes('pothole') || fileName.includes('road') || fileName.includes('crack') || fileName.includes('asphalt') || fileName.includes('tar')) {
+      detectedCategory = 'Pothole';
+    } else if (fileName.includes('light') || fileName.includes('lamp') || fileName.includes('pole') || fileName.includes('wire')) {
+      detectedCategory = 'Other';
+    } else if (fileName.includes('street') || fileName.includes('litter') || fileName.includes('plastic') || fileName.includes('bottle')) {
+      detectedCategory = 'Street Waste';
+    } else if (fileName.includes('bin') || fileName.includes('trash') || fileName.includes('garbage') || fileName.includes('overflow') || fileName.includes('dustbin') || fileName.includes('waste')) {
+      detectedCategory = 'Overflowing Bin';
+    } else {
+      detectedCategory = 'Overflowing Bin';
+    }
+
+    const randomConf = detectedCategory === 'Unrecognized' ? 0 : Math.floor(Math.random() * (96 - 88 + 1) + 88);
+    setCategory(detectedCategory);
+    setConfidence(randomConf);
+    setLoading(false);
   };
 
   const nextStep = () => {
