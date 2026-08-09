@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { getDb } from '@/lib/db';
+import { getUserByEmail } from '@/lib/db';
 import { createSession, SESSION_COOKIE_NAME } from '@/lib/auth';
 
 export async function POST(request) {
   try {
     const { email, password } = await request.json();
-    const db = getDb();
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    const user = await getUserByEmail(email);
 
     if (!user || user.password !== password) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });

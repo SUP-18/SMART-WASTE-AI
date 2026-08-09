@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getNotifications, markNotificationsAsRead } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 
 export async function GET(request) {
@@ -15,9 +15,8 @@ export async function GET(request) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const db = getDb();
-    const notifications = db.prepare('SELECT * FROM notifications WHERE userId = ? ORDER BY createdAt DESC').all(userId);
-    const unreadCount = db.prepare('SELECT COUNT(*) as count FROM notifications WHERE userId = ? AND read = 0').get(userId).count;
+    const notifications = await getNotifications(userId);
+    const unreadCount = notifications.filter(n => !n.read).length;
 
     return NextResponse.json({ notifications, unreadCount });
   } catch (error) {
@@ -31,19 +30,11 @@ export async function PATCH(request) {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const db = getDb();
     const body = await request.json();
 
-    if (body.markAllRead) {
+    if (body.markAllRead || body.notificationIds) {
         const userId = body.userId || session.userId;
-        db.prepare('UPDATE notifications SET read = 1 WHERE userId = ?').run(userId);
-        return NextResponse.json({ success: true });
-    } else if (body.notificationIds && Array.isArray(body.notificationIds)) {
-        const ids = body.notificationIds.map(id => Number(id)).filter(id => !isNaN(id));
-        if (ids.length > 0) {
-            const placeholders = ids.map(() => '?').join(',');
-            db.prepare(`UPDATE notifications SET read = 1 WHERE id IN (${placeholders})`).run(...ids);
-        }
+        await markNotificationsAsRead(userId);
         return NextResponse.json({ success: true });
     }
 

@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getReports, createReport, createNotification, getAdminUsers } from '@/lib/db';
 import { calculatePriority } from '@/lib/priority';
 import { findDuplicates } from '@/lib/duplicates';
 import { getSession } from '@/lib/auth';
-import fs from 'fs';
-import path from 'path';
 
 export async function GET(request) {
   try {
@@ -18,29 +16,7 @@ export async function GET(request) {
     const limit = parseInt(searchParams.get('limit')) || 50;
     const offset = parseInt(searchParams.get('offset')) || 0;
 
-    const db = getDb();
-    let query = 'SELECT reports.*, users.name as reporterName FROM reports LEFT JOIN users ON reports.userId = users.id WHERE 1=1';
-    let countQuery = 'SELECT COUNT(*) as total FROM reports WHERE 1=1';
-    const params = [];
-
-    if (status) { query += ' AND status = ?'; countQuery += ' AND status = ?'; params.push(status); }
-    if (category) { query += ' AND category = ?'; countQuery += ' AND category = ?'; params.push(category); }
-    if (userId) { query += ' AND userId = ?'; countQuery += ' AND userId = ?'; params.push(userId); }
-    if (priority) { query += ' AND priorityLevel = ?'; countQuery += ' AND priorityLevel = ?'; params.push(priority); }
-    if (search) {
-      query += ' AND (description LIKE ? OR locationText LIKE ? OR reportId LIKE ?)';
-      countQuery += ' AND (description LIKE ? OR locationText LIKE ? OR reportId LIKE ?)';
-      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
-    }
-
-    if (sort === 'oldest') query += ' ORDER BY reports.createdAt ASC';
-    else if (sort === 'priority') query += ' ORDER BY reports.priorityScore DESC';
-    else query += ' ORDER BY reports.createdAt DESC';
-
-    query += ' LIMIT ? OFFSET ?';
-    
-    const reports = db.prepare(query).all(...params, limit, offset);
-    const total = db.prepare(countQuery).get(...params).total;
+    const { reports, total } = await getReports({ status, category, userId, priority, search, sort, limit, offset });
 
     return NextResponse.json({ reports, total });
   } catch (error) {
@@ -60,13 +36,7 @@ export async function POST(request) {
       peopleAffected, locationType, aiConfidence, imageUrl 
     } = data;
 
-    const db = getDb();
-    const maxIdRes = db.prepare('SELECT MAX(id) as maxId FROM reports').get();
-    const nextId = (maxIdRes.maxId || 0) + 1;
-    const reportId = `#SW-${nextId + 1000}`;
-
     const reportData = {
-      reportId, 
       category: category || '', 
       description: description || '', 
       latitude: parseFloat(latitude) || 0, 
@@ -84,33 +54,27 @@ export async function POST(request) {
     reportData.priorityScore = priorityResult.score;
     reportData.priorityLevel = priorityResult.level;
 
-    const stmt = db.prepare(`
-      INSERT INTO reports (
-        reportId, category, description, latitude, longitude, locationText,
-        peopleAffected, locationType, aiConfidence, userId, status, upvoteCount,
-        imageUrl, priorityScore, priorityLevel, createdAt, updatedAt
-      ) VALUES (
-        @reportId, @category, @description, @latitude, @longitude, @locationText,
-        @peopleAffected, @locationType, @aiConfidence, @userId, @status, @upvoteCount,
-        @imageUrl, @priorityScore, @priorityLevel, @createdAt, @updatedAt
-      )
-    `);
-    const result = stmt.run(reportData);
-    const report = db.prepare('SELECT * FROM reports WHERE id = ?').get(result.lastInsertRowid);
+    const report = await createReport(reportData);
 
-    const duplicates = findDuplicates(report, db.prepare("SELECT * FROM reports WHERE status != 'Resolved'").all());
+    const { reports: activeReports } = await getReports({ limit: 100 });
+    const duplicates = findDuplicates(report, activeReports.filter(r => r.status !== 'Resolved'));
 
-    const now = new Date().toISOString();
-    db.prepare(`INSERT INTO notifications (userId, message, type, read, createdAt) VALUES (?, ?, ?, 0, ?)`).run(
-      session.userId, `Your report ${reportId} has been successfully submitted.`, 'report_created', now
-    );
+    await createNotification({
+      userId: session.userId,
+      message: `Your report ${report.reportId} has been successfully submitted.`,
+      type: 'report_created',
+      reportId: report.reportId
+    });
 
     // Notify all admin users that a new issue was reported
-    const admins = db.prepare("SELECT id FROM users WHERE LOWER(role) = 'admin'").all();
+    const admins = await getAdminUsers();
     for (const admin of admins) {
-      db.prepare(`INSERT INTO notifications (userId, message, type, read, createdAt) VALUES (?, ?, ?, 0, ?)`).run(
-        admin.id, `New report ${reportId} (${category || 'Issue'}) reported at ${locationText || 'location'}.`, 'new_report', now
-      );
+      await createNotification({
+        userId: admin.id,
+        message: `New report ${report.reportId} (${category || 'Issue'}) reported at ${locationText || 'location'}.`,
+        type: 'new_report',
+        reportId: report.reportId
+      });
     }
 
     return NextResponse.json({ report, duplicates });

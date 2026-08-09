@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import fs from 'fs';
 import path from 'path';
 
@@ -13,8 +14,6 @@ export async function POST(request) {
     if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
     
     // Get extension safely from file type
     let ext = 'jpg';
@@ -25,9 +24,33 @@ export async function POST(request) {
     }
     
     const filename = `${Date.now()}-${Math.round(Math.random()*1e9)}.${ext}`;
-    fs.writeFileSync(path.join(uploadDir, filename), buffer);
 
-    return NextResponse.json({ url: `/uploads/${filename}` });
+    // If Supabase environment variables are provided, upload to Supabase Storage bucket
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      const { data, error } = await supabase.storage
+        .from('reports')
+        .upload(filename, buffer, {
+          contentType: file.type || 'image/jpeg',
+          upsert: true,
+        });
+
+      if (error) {
+        console.error('Supabase Storage error:', error);
+        throw error;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('reports')
+        .getPublicUrl(filename);
+
+      return NextResponse.json({ url: publicUrlData.publicUrl });
+    } else {
+      // Local fallback
+      const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+      if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+      fs.writeFileSync(path.join(uploadDir, filename), buffer);
+      return NextResponse.json({ url: `/uploads/${filename}` });
+    }
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getReportById, updateReport, createNotification, updateUserEcoPoints } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import fs from 'fs';
 import path from 'path';
 
@@ -9,12 +10,11 @@ export async function POST(request, { params }) {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const db = getDb();
     const resolvedParams = await params;
     const { id } = resolvedParams;
-    const isNumeric = /^\d+$/.test(id);
-    const lookupId = id.startsWith('%23') ? decodeURIComponent(id) : (id.startsWith('#') ? id : `#${id}`);
-    const report = db.prepare(`SELECT * FROM reports WHERE ${isNumeric ? 'id' : 'reportId'} = ?`).get(isNumeric ? id : lookupId);
+    const lookupId = id.startsWith('%23') ? decodeURIComponent(id) : id;
+
+    const report = await getReportById(lookupId);
     if (!report) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     const formData = await request.formData();
@@ -24,8 +24,6 @@ export async function POST(request, { params }) {
 
     if (file && file.size > 0) {
       const buffer = Buffer.from(await file.arrayBuffer());
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-      if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
       
       let ext = 'jpg';
       if (file.type) {
@@ -35,31 +33,49 @@ export async function POST(request, { params }) {
       }
       
       const filename = `after-${Date.now()}-${Math.round(Math.random()*1e9)}.${ext}`;
-      fs.writeFileSync(path.join(uploadDir, filename), buffer);
-      afterImageUrl = `/uploads/${filename}`;
+
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        const { error: uploadErr } = await supabase.storage
+          .from('reports')
+          .upload(filename, buffer, {
+            contentType: file.type || 'image/jpeg',
+            upsert: true
+          });
+        if (!uploadErr) {
+          const { data: publicUrlData } = supabase.storage.from('reports').getPublicUrl(filename);
+          afterImageUrl = publicUrlData.publicUrl;
+        }
+      } else {
+        const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+        fs.writeFileSync(path.join(uploadDir, filename), buffer);
+        afterImageUrl = `/uploads/${filename}`;
+      }
     }
 
     const now = new Date().toISOString();
-    
-    db.prepare('BEGIN').run();
-    
-    db.prepare(`UPDATE reports SET status = ?, afterImageUrl = ?, resolvedAt = ?, updatedAt = ? WHERE id = ?`).run(
-      statusOverride, afterImageUrl, now, now, report.id
-    );
-
-    if (report.status !== 'Resolved') {
-        db.prepare('UPDATE users SET ecoPoints = ecoPoints + 10 WHERE id = ?').run(report.userId);
-        db.prepare(`INSERT INTO notifications (userId, message, type, read, createdAt) VALUES (?, ?, ?, 0, ?)`).run(
-            report.userId, `Your report ${report.reportId} has been resolved!`, 'status_update', now
-        );
+    const updateFields = {
+      status: statusOverride,
+      resolvedAt: now,
+    };
+    if (afterImageUrl) {
+      updateFields.afterImageUrl = afterImageUrl;
     }
 
-    db.prepare('COMMIT').run();
+    const updatedReport = await updateReport(report.id, updateFields);
 
-    const updatedReport = db.prepare('SELECT * FROM reports WHERE id = ?').get(report.id);
+    if (report.status !== 'Resolved') {
+      await updateUserEcoPoints(report.userId, 10);
+      await createNotification({
+        userId: report.userId,
+        message: `Your report ${report.reportId} has been resolved!`,
+        type: 'status_update',
+        reportId: report.reportId
+      });
+    }
+
     return NextResponse.json({ report: updatedReport });
   } catch (error) {
-    getDb().prepare('ROLLBACK').run();
     console.error('Resolve report error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

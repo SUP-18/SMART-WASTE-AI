@@ -1,228 +1,364 @@
-import Database from 'better-sqlite3';
+import { supabase } from './supabase';
 import path from 'path';
 
-let db = null;
-
-function getDb() {
-  if (db) return db;
-  
-  // Create or open the database in the project root
-  db = new Database(path.join(process.cwd(), 'smartwaste.db'));
-  
-  // Initialize schema
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      email TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      role TEXT DEFAULT 'citizen',
-      ecoPoints INTEGER DEFAULT 0,
-      badges TEXT DEFAULT '[]',
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS reports (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      reportId TEXT UNIQUE NOT NULL,
-      userId INTEGER NOT NULL,
-      category TEXT NOT NULL,
-      description TEXT,
-      imageUrl TEXT,
-      afterImageUrl TEXT,
-      latitude REAL,
-      longitude REAL,
-      locationText TEXT,
-      priorityScore INTEGER DEFAULT 50,
-      priorityLevel TEXT DEFAULT 'Medium',
-      peopleAffected TEXT DEFAULT '1-5',
-      locationType TEXT DEFAULT 'Public Road',
-      status TEXT DEFAULT 'Pending',
-      assignedTo TEXT,
-      upvoteCount INTEGER DEFAULT 0,
-      aiConfidence REAL DEFAULT 0.85,
-      resolvedAt DATETIME,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (userId) REFERENCES users(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS notifications (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      userId INTEGER NOT NULL,
-      message TEXT NOT NULL,
-      type TEXT DEFAULT 'info',
-      reportId TEXT,
-      read INTEGER DEFAULT 0,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (userId) REFERENCES users(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS upvotes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      reportId INTEGER NOT NULL,
-      userId INTEGER NOT NULL,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(reportId, userId),
-      FOREIGN KEY (reportId) REFERENCES reports(id),
-      FOREIGN KEY (userId) REFERENCES users(id)
-    );
-  `);
-
-  seedDatabase(db);
-  
-  return db;
+// Helper to check if Supabase is properly configured via environment variables
+export function isSupabaseConfigured() {
+  return (
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co' &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY !== 'placeholder-anon-key'
+  );
 }
 
-function seedDatabase(db) {
-  const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
-  if (userCount > 0) return; // Already seeded
+let sqliteDb = null;
+function getSqliteDb() {
+  if (sqliteDb) return sqliteDb;
+  const Database = require('better-sqlite3');
+  sqliteDb = new Database(path.join(process.cwd(), 'smartwaste.db'));
+  return sqliteDb;
+}
 
-  console.log('Seeding database with demo data...');
+// -------------------------------------------------------------
+// USER OPERATIONS
+// -------------------------------------------------------------
+export async function getUserByEmail(email) {
+  if (isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+    if (error && error.code !== 'PGRST116') console.error('Supabase getUserByEmail error:', error);
+    return data || null;
+  } else {
+    const db = getSqliteDb();
+    return db.prepare('SELECT * FROM users WHERE email = ?').get(email) || null;
+  }
+}
 
-  const insertUser = db.prepare(`
-    INSERT INTO users (id, name, email, password, role, ecoPoints) 
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
+export async function getUserById(id) {
+  if (isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error) console.error('Supabase getUserById error:', error);
+    return data || null;
+  } else {
+    const db = getSqliteDb();
+    return db.prepare('SELECT * FROM users WHERE id = ?').get(id) || null;
+  }
+}
 
-  // 1. Users
-  insertUser.run(1, 'Alex Johnson', 'demo@citizen.com', 'demo123', 'citizen', 420);
-  insertUser.run(2, 'Sarah Admin', 'admin@smartwaste.com', 'admin123', 'admin', 0);
-  insertUser.run(3, 'Priya Sharma', 'priya@citizen.com', 'demo123', 'citizen', 350);
-  insertUser.run(4, 'Marcus Chen', 'marcus@citizen.com', 'demo123', 'citizen', 280);
-  insertUser.run(5, 'Emily Davis', 'emily@citizen.com', 'demo123', 'citizen', 195);
-  insertUser.run(6, 'Raj Patel', 'raj@citizen.com', 'demo123', 'citizen', 150);
-  insertUser.run(7, 'John Doe', 'john@citizen.com', 'demo123', 'citizen', 50);
+export async function createUser({ name, email, password, role = 'citizen', ecoPoints = 0 }) {
+  if (isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('users')
+      .insert([{ name, email, password, role, ecoPoints }])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } else {
+    const db = getSqliteDb();
+    const result = db.prepare('INSERT INTO users (name, email, password, role, ecoPoints) VALUES (?, ?, ?, ?, ?)').run(name, email, password, role, ecoPoints);
+    return db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
+  }
+}
 
-  // 2. Reports
-  const insertReport = db.prepare(`
-    INSERT INTO reports (reportId, userId, category, description, imageUrl, afterImageUrl, latitude, longitude, locationText, priorityScore, priorityLevel, peopleAffected, locationType, status, assignedTo, upvoteCount, resolvedAt, createdAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
+export async function updateUserEcoPoints(userId, pointsToAdd) {
+  if (isSupabaseConfigured()) {
+    const user = await getUserById(userId);
+    if (!user) return;
+    const newPoints = (user.ecoPoints || 0) + pointsToAdd;
+    await supabase.from('users').update({ ecoPoints: newPoints }).eq('id', userId);
+  } else {
+    const db = getSqliteDb();
+    db.prepare('UPDATE users SET ecoPoints = ecoPoints + ? WHERE id = ?').run(pointsToAdd, userId);
+  }
+}
 
-  const now = new Date();
-  const daysAgo = (days) => new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
+export async function getAdminUsers() {
+  if (isSupabaseConfigured()) {
+    const { data } = await supabase.from('users').select('id, name, email').ilike('role', 'admin');
+    return data || [];
+  } else {
+    const db = getSqliteDb();
+    return db.prepare("SELECT id, name, email FROM users WHERE LOWER(role) = 'admin'").all();
+  }
+}
 
-  // Generating 12 reports around Delhi (28.6139, 77.2090)
-  const reportsData = [
-    {
-      reportId: '#SW-1001', userId: 1, category: 'Overflowing Bin', description: 'Bin overflowing since 3 days near metro station.', 
-      imageUrl: '/uploads/demo/bin1.svg', afterImageUrl: null, 
-      latitude: 28.6145, longitude: 77.2085, locationText: 'Central Secretariat Metro',
-      priorityScore: 55, priorityLevel: 'Medium', peopleAffected: '50+', locationType: 'Public Road',
-      status: 'Pending', assignedTo: null, upvoteCount: 12, resolvedAt: null, createdAt: daysAgo(2)
-    },
-    {
-      reportId: '#SW-1002', userId: 3, category: 'Water Leakage', description: 'Major pipe burst wasting clean water.', 
-      imageUrl: '/uploads/demo/leak1.svg', afterImageUrl: '/uploads/demo/leak1_fixed.svg', 
-      latitude: 28.6120, longitude: 77.2100, locationText: 'Connaught Place Block A',
-      priorityScore: 85, priorityLevel: 'High', peopleAffected: '50+', locationType: 'Market',
-      status: 'Resolved', assignedTo: 'Water Dept Team A', upvoteCount: 45, resolvedAt: daysAgo(1), createdAt: daysAgo(5)
-    },
-    {
-      reportId: '#SW-1003', userId: 4, category: 'Illegal Dumping', description: 'Construction waste dumped overnight in the park.', 
-      imageUrl: '/uploads/demo/dump1.svg', afterImageUrl: null, 
-      latitude: 28.6160, longitude: 77.2120, locationText: 'Lodhi Garden Area',
-      priorityScore: 65, priorityLevel: 'Medium', peopleAffected: '21-50', locationType: 'Park',
-      status: 'Assigned', assignedTo: 'Sanitation Team B', upvoteCount: 22, resolvedAt: null, createdAt: daysAgo(3)
-    },
-    {
-      reportId: '#SW-1004', userId: 5, category: 'Pothole', description: 'Dangerous pothole on main road causing traffic delays.', 
-      imageUrl: '/uploads/demo/pothole1.svg', afterImageUrl: null, 
-      latitude: 28.6105, longitude: 77.2050, locationText: 'Janpath Road',
-      priorityScore: 75, priorityLevel: 'High', peopleAffected: '50+', locationType: 'Public Road',
-      status: 'In Progress', assignedTo: 'PWD Ward 4', upvoteCount: 34, resolvedAt: null, createdAt: daysAgo(1)
-    },
-    {
-      reportId: '#SW-1005', userId: 6, category: 'Street Waste', description: 'Plastic wrappers and cups scattered outside school.', 
-      imageUrl: '/uploads/demo/street1.svg', afterImageUrl: '/uploads/demo/street1_clean.svg', 
-      latitude: 28.6180, longitude: 77.2060, locationText: 'Gole Market School Zone',
-      priorityScore: 45, priorityLevel: 'Medium', peopleAffected: '6-20', locationType: 'School/College',
-      status: 'Resolved', assignedTo: 'Sanitation Team C', upvoteCount: 8, resolvedAt: daysAgo(2), createdAt: daysAgo(6)
-    },
-    {
-      reportId: '#SW-1006', userId: 1, category: 'Overflowing Bin', description: 'Garbage bin not emptied. Stray dogs spreading trash.', 
-      imageUrl: '/uploads/demo/bin2.svg', afterImageUrl: null, 
-      latitude: 28.6200, longitude: 77.2150, locationText: 'India Gate Circle',
-      priorityScore: 35, priorityLevel: 'Low', peopleAffected: '1-5', locationType: 'Park',
-      status: 'Pending', assignedTo: null, upvoteCount: 2, resolvedAt: null, createdAt: daysAgo(0)
-    },
-    {
-      reportId: '#SW-1007', userId: 3, category: 'Pothole', description: 'Deep pothole filled with water.', 
-      imageUrl: '/uploads/demo/pothole2.svg', afterImageUrl: '/uploads/demo/pothole2_fixed.svg', 
-      latitude: 28.6150, longitude: 77.2030, locationText: 'Parliament Street',
-      priorityScore: 80, priorityLevel: 'High', peopleAffected: '21-50', locationType: 'Public Road',
-      status: 'Resolved', assignedTo: 'PWD Ward 1', upvoteCount: 40, resolvedAt: daysAgo(3), createdAt: daysAgo(7)
-    },
-    {
-      reportId: '#SW-1008', userId: 4, category: 'Water Leakage', description: 'Sewer water overflowing onto the street.', 
-      imageUrl: '/uploads/demo/leak2.svg', afterImageUrl: null, 
-      latitude: 28.6110, longitude: 77.2180, locationText: 'Khan Market',
-      priorityScore: 90, priorityLevel: 'High', peopleAffected: '50+', locationType: 'Market',
-      status: 'In Progress', assignedTo: 'Water Dept Team B', upvoteCount: 55, resolvedAt: null, createdAt: daysAgo(2)
-    },
-    {
-      reportId: '#SW-1009', userId: 5, category: 'Illegal Dumping', description: 'Furniture abandoned on the sidewalk.', 
-      imageUrl: '/uploads/demo/dump2.svg', afterImageUrl: null, 
-      latitude: 28.6080, longitude: 77.2090, locationText: 'Mandi House',
-      priorityScore: 30, priorityLevel: 'Low', peopleAffected: '1-5', locationType: 'Public Road',
-      status: 'Pending', assignedTo: null, upvoteCount: 5, resolvedAt: null, createdAt: daysAgo(1)
-    },
-    {
-      reportId: '#SW-1010', userId: 6, category: 'Street Waste', description: 'Fallen tree branches blocking pedestrian path.', 
-      imageUrl: '/uploads/demo/street2.svg', afterImageUrl: null, 
-      latitude: 28.6190, longitude: 77.2110, locationText: 'Ashoka Road',
-      priorityScore: 50, priorityLevel: 'Medium', peopleAffected: '6-20', locationType: 'Public Road',
-      status: 'Assigned', assignedTo: 'Horticulture Dept', upvoteCount: 15, resolvedAt: null, createdAt: daysAgo(4)
-    },
-    {
-      reportId: '#SW-1011', userId: 1, category: 'Other', description: 'Broken street light creating unsafe dark spot.', 
-      imageUrl: '/uploads/demo/other1.svg', afterImageUrl: null, 
-      latitude: 28.6210, longitude: 77.2040, locationText: 'Baba Kharak Singh Marg',
-      priorityScore: 60, priorityLevel: 'Medium', peopleAffected: '21-50', locationType: 'Public Road',
-      status: 'Pending', assignedTo: null, upvoteCount: 18, resolvedAt: null, createdAt: daysAgo(2)
-    },
-    {
-      reportId: '#SW-1012', userId: 3, category: 'Overflowing Bin', description: 'Community bin full since weekend.', 
-      imageUrl: '/uploads/demo/bin3.svg', afterImageUrl: null, 
-      latitude: 28.6130, longitude: 77.2140, locationText: 'Kasturba Gandhi Marg',
-      priorityScore: 38, priorityLevel: 'Low', peopleAffected: '6-20', locationType: 'Residential',
-      status: 'Pending', assignedTo: null, upvoteCount: 4, resolvedAt: null, createdAt: daysAgo(0)
+// -------------------------------------------------------------
+// REPORT OPERATIONS
+// -------------------------------------------------------------
+export async function getReports({ status, category, userId, priority, search, sort = 'newest', limit = 50, offset = 0 } = {}) {
+  if (isSupabaseConfigured()) {
+    let query = supabase.from('reports').select('*, users(name)', { count: 'exact' });
+
+    if (status) query = query.eq('status', status);
+    if (category) query = query.eq('category', category);
+    if (userId) query = query.eq('userId', userId);
+    if (priority) query = query.eq('priorityLevel', priority);
+    if (search) query = query.or(`description.ilike.%${search}%,locationText.ilike.%${search}%,reportId.ilike.%${search}%`);
+
+    if (sort === 'oldest') query = query.order('createdAt', { ascending: true });
+    else if (sort === 'priority') query = query.order('priorityScore', { ascending: false });
+    else query = query.order('createdAt', { ascending: false });
+
+    query = query.range(offset, offset + limit - 1);
+
+    const { data, count, error } = await query;
+    if (error) console.error('Supabase getReports error:', error);
+    
+    const formattedReports = (data || []).map(r => ({
+      ...r,
+      reporterName: r.users?.name || 'Citizen'
+    }));
+
+    return { reports: formattedReports, total: count || 0 };
+  } else {
+    const db = getSqliteDb();
+    let query = 'SELECT reports.*, users.name as reporterName FROM reports LEFT JOIN users ON reports.userId = users.id WHERE 1=1';
+    let countQuery = 'SELECT COUNT(*) as total FROM reports WHERE 1=1';
+    const params = [];
+
+    if (status) { query += ' AND status = ?'; countQuery += ' AND status = ?'; params.push(status); }
+    if (category) { query += ' AND category = ?'; countQuery += ' AND category = ?'; params.push(category); }
+    if (userId) { query += ' AND userId = ?'; countQuery += ' AND userId = ?'; params.push(userId); }
+    if (priority) { query += ' AND priorityLevel = ?'; countQuery += ' AND priorityLevel = ?'; params.push(priority); }
+    if (search) {
+      query += ' AND (description LIKE ? OR locationText LIKE ? OR reportId LIKE ?)';
+      countQuery += ' AND (description LIKE ? OR locationText LIKE ? OR reportId LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
-  ];
 
-  for (const rep of reportsData) {
-    insertReport.run(
-      rep.reportId, rep.userId, rep.category, rep.description, rep.imageUrl, rep.afterImageUrl,
-      rep.latitude, rep.longitude, rep.locationText, rep.priorityScore, rep.priorityLevel,
-      rep.peopleAffected, rep.locationType, rep.status, rep.assignedTo, rep.upvoteCount,
-      rep.resolvedAt, rep.createdAt
+    if (sort === 'oldest') query += ' ORDER BY reports.createdAt ASC';
+    else if (sort === 'priority') query += ' ORDER BY reports.priorityScore DESC';
+    else query += ' ORDER BY reports.createdAt DESC';
+
+    query += ' LIMIT ? OFFSET ?';
+    const reports = db.prepare(query).all(...params, limit, offset);
+    const total = db.prepare(countQuery).get(...params).total;
+    return { reports, total };
+  }
+}
+
+export async function getReportById(idOrReportId) {
+  if (isSupabaseConfigured()) {
+    let query = supabase.from('reports').select('*, users(name)');
+    if (String(idOrReportId).startsWith('#')) {
+      query = query.eq('reportId', idOrReportId);
+    } else {
+      query = query.eq('id', idOrReportId);
+    }
+    const { data, error } = await query.single();
+    if (error) console.error('Supabase getReportById error:', error);
+    if (!data) return null;
+    return {
+      ...data,
+      reporterName: data.users?.name || 'Citizen'
+    };
+  } else {
+    const db = getSqliteDb();
+    if (String(idOrReportId).startsWith('#')) {
+      return db.prepare('SELECT reports.*, users.name as reporterName FROM reports LEFT JOIN users ON reports.userId = users.id WHERE reportId = ?').get(idOrReportId) || null;
+    }
+    return db.prepare('SELECT reports.*, users.name as reporterName FROM reports LEFT JOIN users ON reports.userId = users.id WHERE reports.id = ?').get(idOrReportId) || null;
+  }
+}
+
+export async function createReport(reportData) {
+  if (isSupabaseConfigured()) {
+    // Generate next report ID
+    const { data: latest } = await supabase.from('reports').select('id').order('id', { ascending: false }).limit(1);
+    const nextNum = ((latest && latest[0] ? latest[0].id : 0) + 1001);
+    const reportId = `#SW-${nextNum}`;
+
+    const newReport = {
+      ...reportData,
+      reportId
+    };
+
+    const { data, error } = await supabase.from('reports').insert([newReport]).select().single();
+    if (error) throw error;
+    return data;
+  } else {
+    const db = getSqliteDb();
+    const maxIdRes = db.prepare('SELECT MAX(id) as maxId FROM reports').get();
+    const nextId = (maxIdRes.maxId || 0) + 1;
+    const reportId = `#SW-${nextId + 1000}`;
+    
+    const finalData = { ...reportData, reportId };
+    
+    const stmt = db.prepare(`
+      INSERT INTO reports (
+        reportId, category, description, latitude, longitude, locationText,
+        peopleAffected, locationType, aiConfidence, userId, status, upvoteCount,
+        imageUrl, priorityScore, priorityLevel, createdAt, updatedAt
+      ) VALUES (
+        @reportId, @category, @description, @latitude, @longitude, @locationText,
+        @peopleAffected, @locationType, @aiConfidence, @userId, @status, @upvoteCount,
+        @imageUrl, @priorityScore, @priorityLevel, @createdAt, @updatedAt
+      )
+    `);
+    const result = stmt.run(finalData);
+    return db.prepare('SELECT * FROM reports WHERE id = ?').get(result.lastInsertRowid);
+  }
+}
+
+export async function updateReport(id, updateFields) {
+  if (isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('reports')
+      .update({ ...updateFields, updatedAt: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } else {
+    const db = getSqliteDb();
+    const keys = Object.keys(updateFields);
+    const setClause = keys.map(k => `${k} = ?`).join(', ');
+    const values = keys.map(k => updateFields[k]);
+    db.prepare(`UPDATE reports SET ${setClause}, updatedAt = ? WHERE id = ?`).run(...values, new Date().toISOString(), id);
+    return db.prepare('SELECT * FROM reports WHERE id = ?').get(id);
+  }
+}
+
+// -------------------------------------------------------------
+// NOTIFICATION OPERATIONS
+// -------------------------------------------------------------
+export async function getNotifications(userId) {
+  if (isSupabaseConfigured()) {
+    const { data } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('userId', userId)
+      .order('createdAt', { ascending: false });
+    return data || [];
+  } else {
+    const db = getSqliteDb();
+    return db.prepare('SELECT * FROM notifications WHERE userId = ? ORDER BY createdAt DESC').all(userId);
+  }
+}
+
+export async function createNotification({ userId, message, type = 'info', reportId = null }) {
+  if (isSupabaseConfigured()) {
+    await supabase.from('notifications').insert([{ userId, message, type, reportId, read: 0 }]);
+  } else {
+    const db = getSqliteDb();
+    db.prepare('INSERT INTO notifications (userId, message, type, reportId, read, createdAt) VALUES (?, ?, ?, ?, 0, ?)').run(
+      userId, message, type, reportId, new Date().toISOString()
     );
   }
-
-  // 3. Notifications
-  const insertNotification = db.prepare(`
-    INSERT INTO notifications (userId, message, type, reportId, createdAt)
-    VALUES (?, ?, ?, ?, ?)
-  `);
-  
-  insertNotification.run(1, 'Your report #SW-1001 has been received.', 'info', '#SW-1001', daysAgo(2));
-  insertNotification.run(1, 'Report #SW-1006 has been submitted successfully.', 'success', '#SW-1006', daysAgo(0));
-  insertNotification.run(1, 'Your issue #SW-1011 is gaining attention! (10+ upvotes)', 'info', '#SW-1011', daysAgo(1));
-
-  // 4. Upvotes
-  const insertUpvote = db.prepare(`
-    INSERT INTO upvotes (reportId, userId, createdAt)
-    VALUES (?, ?, ?)
-  `);
-
-  // Demo user upvoted a few reports
-  insertUpvote.run(1, 2, daysAgo(1));
-  insertUpvote.run(1, 3, daysAgo(1));
-  insertUpvote.run(2, 1, daysAgo(4));
-  insertUpvote.run(3, 1, daysAgo(2));
-
-  console.log('Database seeding complete.');
 }
 
-export { getDb };
+export async function markNotificationsAsRead(userId) {
+  if (isSupabaseConfigured()) {
+    await supabase.from('notifications').update({ read: 1 }).eq('userId', userId);
+  } else {
+    const db = getSqliteDb();
+    db.prepare('UPDATE notifications SET read = 1 WHERE userId = ?').run(userId);
+  }
+}
+
+// -------------------------------------------------------------
+// UPVOTE OPERATIONS
+// -------------------------------------------------------------
+export async function hasUserUpvoted(reportId, userId) {
+  if (isSupabaseConfigured()) {
+    const { data } = await supabase.from('upvotes').select('id').eq('reportId', reportId).eq('userId', userId).single();
+    return !!data;
+  } else {
+    const db = getSqliteDb();
+    const row = db.prepare('SELECT id FROM upvotes WHERE reportId = ? AND userId = ?').get(reportId, userId);
+    return !!row;
+  }
+}
+
+export async function addUpvote(reportId, userId) {
+  if (isSupabaseConfigured()) {
+    await supabase.from('upvotes').insert([{ reportId, userId }]);
+    const report = await getReportById(reportId);
+    const newCount = (report?.upvoteCount || 0) + 1;
+    await supabase.from('reports').update({ upvoteCount: newCount }).eq('id', reportId);
+    return newCount;
+  } else {
+    const db = getSqliteDb();
+    db.prepare('INSERT INTO upvotes (reportId, userId, createdAt) VALUES (?, ?, ?)').run(reportId, userId, new Date().toISOString());
+    db.prepare('UPDATE reports SET upvoteCount = upvoteCount + 1 WHERE id = ?').run(reportId);
+    const updated = db.prepare('SELECT upvoteCount FROM reports WHERE id = ?').get(reportId);
+    return updated?.upvoteCount || 0;
+  }
+}
+
+// -------------------------------------------------------------
+// LEADERBOARD & ANALYTICS
+// -------------------------------------------------------------
+export async function getLeaderboardData() {
+  if (isSupabaseConfigured()) {
+    const { data: leaders } = await supabase.from('users').select('id, name, ecoPoints, badges').ilike('role', 'citizen').order('ecoPoints', { ascending: false }).limit(10);
+    const { count: totalCitizens } = await supabase.from('users').select('*', { count: 'exact', head: true }).ilike('role', 'citizen');
+    const { count: totalResolved } = await supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'Resolved');
+
+    const formattedLeaders = await Promise.all((leaders || []).map(async (u) => {
+      const { count: rCount } = await supabase.from('reports').select('*', { count: 'exact', head: true }).eq('userId', u.id);
+      const { count: resCount } = await supabase.from('reports').select('*', { count: 'exact', head: true }).eq('userId', u.id).eq('status', 'Resolved');
+      return {
+        ...u,
+        reportCount: rCount || 0,
+        resolvedCount: resCount || 0
+      };
+    }));
+
+    return {
+      leaders: formattedLeaders,
+      stats: {
+        totalCitizens: totalCitizens || 0,
+        totalResolved: totalResolved || 0,
+        totalPoints: (leaders || []).reduce((acc, curr) => acc + (curr.ecoPoints || 0), 0)
+      }
+    };
+  } else {
+    const db = getSqliteDb();
+    const topUsers = db.prepare(`
+      SELECT id, name, ecoPoints, badges,
+             (SELECT COUNT(*) FROM reports WHERE reports.userId = users.id) as reportCount,
+             (SELECT COUNT(*) FROM reports WHERE reports.userId = users.id AND reports.status = 'Resolved') as resolvedCount
+      FROM users
+      WHERE role = 'citizen'
+      ORDER BY ecoPoints DESC
+      LIMIT 10
+    `).all();
+
+    return {
+      leaders: topUsers,
+      stats: { totalCitizens, totalResolved, totalPoints }
+    };
+  }
+}
+
+export async function clearDatabase(mode = 'reports') {
+  if (isSupabaseConfigured()) {
+    await supabase.from('upvotes').delete().neq('id', 0);
+    await supabase.from('notifications').delete().neq('id', 0);
+    await supabase.from('reports').delete().neq('id', 0);
+    if (mode === 'all') {
+      await supabase.from('users').delete().neq('role', 'admin');
+    }
+  } else {
+    const db = getSqliteDb();
+    db.prepare('BEGIN').run();
+    db.prepare('DELETE FROM upvotes').run();
+    db.prepare('DELETE FROM notifications').run();
+    db.prepare('DELETE FROM reports').run();
+    if (mode === 'all') {
+      db.prepare("DELETE FROM users WHERE role != 'admin'").run();
+    }
+    db.prepare('COMMIT').run();
+  }
+}
+
