@@ -30,7 +30,11 @@ export async function getUserByEmail(email) {
       .eq('email', email)
       .single();
     if (error && error.code !== 'PGRST116') console.error('Supabase getUserByEmail error:', error);
-    return data || null;
+    if (!data) return null;
+    return {
+      ...data,
+      ecoPoints: data.ecopoints ?? data.ecoPoints ?? 0
+    };
   } else {
     const db = getSqliteDb();
     return db.prepare('SELECT * FROM users WHERE email = ?').get(email) || null;
@@ -45,7 +49,11 @@ export async function getUserById(id) {
       .eq('id', id)
       .single();
     if (error) console.error('Supabase getUserById error:', error);
-    return data || null;
+    if (!data) return null;
+    return {
+      ...data,
+      ecoPoints: data.ecopoints ?? data.ecoPoints ?? 0
+    };
   } else {
     const db = getSqliteDb();
     return db.prepare('SELECT * FROM users WHERE id = ?').get(id) || null;
@@ -56,11 +64,17 @@ export async function createUser({ name, email, password, role = 'citizen', ecoP
   if (isSupabaseConfigured()) {
     const { data, error } = await supabase
       .from('users')
-      .insert([{ name, email, password, role, ecoPoints }])
+      .insert([{ name, email, password, role, ecopoints: ecoPoints }])
       .select()
       .single();
-    if (error) throw error;
-    return data;
+    if (error) {
+      console.error('Supabase createUser error:', error);
+      throw error;
+    }
+    return {
+      ...data,
+      ecoPoints: data.ecopoints ?? data.ecoPoints ?? 0
+    };
   } else {
     const db = getSqliteDb();
     const result = db.prepare('INSERT INTO users (name, email, password, role, ecoPoints) VALUES (?, ?, ?, ?, ?)').run(name, email, password, role, ecoPoints);
@@ -72,8 +86,8 @@ export async function updateUserEcoPoints(userId, pointsToAdd) {
   if (isSupabaseConfigured()) {
     const user = await getUserById(userId);
     if (!user) return;
-    const newPoints = (user.ecoPoints || 0) + pointsToAdd;
-    await supabase.from('users').update({ ecoPoints: newPoints }).eq('id', userId);
+    const newPoints = (user.ecoPoints || user.ecopoints || 0) + pointsToAdd;
+    await supabase.from('users').update({ ecopoints: newPoints }).eq('id', userId);
   } else {
     const db = getSqliteDb();
     db.prepare('UPDATE users SET ecoPoints = ecoPoints + ? WHERE id = ?').run(pointsToAdd, userId);
