@@ -140,21 +140,39 @@ export default function ReportPage() {
     setLoading(true);
     
     try {
-      const formData = new FormData();
-      formData.append('image', image);
+      let imageUrl = imagePreview || '';
       
-      const uploadRes = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData
-      });
-      
-      let imageUrl = '';
-      if (uploadRes.ok) {
-        const uploadData = await uploadRes.json();
-        imageUrl = uploadData.url;
-      } else {
-        // Fallback for demo
-        imageUrl = 'https://images.unsplash.com/photo-1605600659908-0ef719419d41?w=800&q=80';
+      if (image) {
+        try {
+          const formData = new FormData();
+          formData.append('image', image);
+          
+          const uploadRes = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData
+          });
+          
+          if (uploadRes.ok) {
+            const uploadData = await uploadRes.json();
+            if (uploadData.url && uploadData.url.startsWith('http')) {
+              imageUrl = uploadData.url;
+            }
+          }
+        } catch (uploadErr) {
+          console.error('Upload error, using image preview:', uploadErr);
+        }
+      }
+
+      if (!imageUrl) {
+        const fallbacks = {
+          'Overflowing Bin': '/uploads/demo/overflowing_bin.jpg',
+          'Illegal Dumping': '/uploads/demo/illegal_dumping.jpg',
+          'Street Waste': '/uploads/demo/street_waste.jpg',
+          'Water Leakage': '/uploads/demo/water_leakage.jpg',
+          'Pothole': '/uploads/demo/pothole.jpg',
+          'Other': '/uploads/demo/street_light.jpg'
+        };
+        imageUrl = fallbacks[category] || '/uploads/demo/overflowing_bin.jpg';
       }
 
       const pScore = calculatePriority();
@@ -180,8 +198,8 @@ export default function ReportPage() {
       
       if (res.ok) {
         const data = await res.json();
-        setReportId(data.report.id); // Use numeric ID for the URL link
-        setPriorityScore(data.report.priorityScore);
+        setReportId(data.report.id);
+        setPriorityScore(data.report.priorityScore || data.report.priorityscore || pScore);
         setIsSubmitted(true);
       } else {
         alert("Failed to submit report");

@@ -38,6 +38,15 @@ export async function POST(request) {
       peopleAffected, locationType, aiConfidence, imageUrl 
     } = data;
 
+    const categoryFallbacks = {
+      'Overflowing Bin': '/uploads/demo/overflowing_bin.jpg',
+      'Illegal Dumping': '/uploads/demo/illegal_dumping.jpg',
+      'Street Waste': '/uploads/demo/street_waste.jpg',
+      'Water Leakage': '/uploads/demo/water_leakage.jpg',
+      'Pothole': '/uploads/demo/pothole.jpg',
+      'Other': '/uploads/demo/street_light.jpg'
+    };
+
     const reportData = {
       category: category || '', 
       description: description || '', 
@@ -50,7 +59,7 @@ export async function POST(request) {
       userId: userId,
       status: 'Pending',
       upvoteCount: 0,
-      imageUrl: imageUrl || '/uploads/demo/overflowing_bin.jpg', 
+      imageUrl: imageUrl || categoryFallbacks[category] || '/uploads/demo/overflowing_bin.jpg', 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

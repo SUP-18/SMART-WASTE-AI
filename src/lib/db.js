@@ -99,12 +99,12 @@ export async function getReports({ status, category, userId, priority, search, s
 
     if (status) query = query.eq('status', status);
     if (category) query = query.eq('category', category);
-    if (userId) query = query.eq('userId', userId);
-    if (priority) query = query.eq('priorityLevel', priority);
-    if (search) query = query.or(`description.ilike.%${search}%,locationText.ilike.%${search}%,reportId.ilike.%${search}%`);
+    if (userId) query = query.eq('userid', userId);
+    if (priority) query = query.eq('prioritylevel', priority);
+    if (search) query = query.or(`description.ilike.%${search}%,locationtext.ilike.%${search}%,reportid.ilike.%${search}%`);
 
     if (sort === 'oldest') query = query.order('id', { ascending: true });
-    else if (sort === 'priority') query = query.order('priorityScore', { ascending: false });
+    else if (sort === 'priority') query = query.order('priorityscore', { ascending: false });
     else query = query.order('id', { ascending: false });
 
     query = query.range(offset, offset + limit - 1);
@@ -163,7 +163,7 @@ export async function getReportById(idOrReportId) {
   if (isSupabaseConfigured()) {
     let query = supabase.from('reports').select('*, users(name)');
     if (String(idOrReportId).startsWith('#')) {
-      query = query.eq('reportId', idOrReportId);
+      query = query.eq('reportid', idOrReportId);
     } else {
       query = query.eq('id', idOrReportId);
     }
@@ -376,15 +376,16 @@ export async function addUpvote(reportId, userId) {
 // -------------------------------------------------------------
 export async function getLeaderboardData() {
   if (isSupabaseConfigured()) {
-    const { data: leaders } = await supabase.from('users').select('id, name, ecoPoints, badges').ilike('role', 'citizen').order('ecoPoints', { ascending: false }).limit(10);
+    const { data: leaders } = await supabase.from('users').select('id, name, ecopoints, badges').ilike('role', 'citizen').order('ecopoints', { ascending: false }).limit(10);
     const { count: totalCitizens } = await supabase.from('users').select('*', { count: 'exact', head: true }).ilike('role', 'citizen');
     const { count: totalResolved } = await supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'Resolved');
 
     const formattedLeaders = await Promise.all((leaders || []).map(async (u) => {
-      const { count: rCount } = await supabase.from('reports').select('*', { count: 'exact', head: true }).eq('userId', u.id);
-      const { count: resCount } = await supabase.from('reports').select('*', { count: 'exact', head: true }).eq('userId', u.id).eq('status', 'Resolved');
+      const { count: rCount } = await supabase.from('reports').select('*', { count: 'exact', head: true }).eq('userid', u.id);
+      const { count: resCount } = await supabase.from('reports').select('*', { count: 'exact', head: true }).eq('userid', u.id).eq('status', 'Resolved');
       return {
         ...u,
+        ecoPoints: u.ecopoints ?? u.ecoPoints ?? 0,
         reportCount: rCount || 0,
         resolvedCount: resCount || 0
       };
@@ -395,7 +396,7 @@ export async function getLeaderboardData() {
       stats: {
         totalCitizens: totalCitizens || 0,
         totalResolved: totalResolved || 0,
-        totalPoints: (leaders || []).reduce((acc, curr) => acc + (curr.ecoPoints || 0), 0)
+        totalPoints: (leaders || []).reduce((acc, curr) => acc + (curr.ecopoints || curr.ecoPoints || 0), 0)
       }
     };
   } else {
