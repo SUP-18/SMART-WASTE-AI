@@ -5,7 +5,7 @@ import Link from 'next/link';
 import AdminLayout from '@/components/AdminLayout';
 import { useAuth } from '@/context/AuthContext';
 import styles from './admin.module.css';
-import { FileText, Clock, Loader, CheckCircle, AlertTriangle, ChevronRight, Eye } from 'lucide-react';
+import { FileText, Clock, Loader, CheckCircle, AlertTriangle, ChevronRight, Eye, Trash2 } from 'lucide-react';
 
 function getCategoryIcon(category) {
   switch (category) {
@@ -56,6 +56,21 @@ export default function AdminDashboard() {
     }
     fetchData();
   }, []);
+
+  const handleDelete = async (reportId) => {
+    if (!confirm('Are you sure you want to delete this report? This action cannot be undone.')) return;
+    try {
+      const res = await fetch(`/api/reports/${reportId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setReports(prev => prev.filter(r => (r.id || r.reportId) !== reportId));
+      } else {
+        alert('Failed to delete report');
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('Error deleting report');
+    }
+  };
 
   if (loading) {
     return (
@@ -186,9 +201,18 @@ export default function AdminDashboard() {
                     </td>
                     <td data-label="Date">{new Date(repDate).toLocaleDateString()}</td>
                     <td data-label="Actions">
-                      <Link href={`/admin/reports/${repId}`} className={styles.actionButton} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>
-                        <Eye size={14} /> View
-                      </Link>
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <Link href={`/admin/reports/${repId}`} className={styles.actionButton} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>
+                          <Eye size={14} /> View
+                        </Link>
+                        <button 
+                          onClick={() => handleDelete(repId)} 
+                          className={styles.actionButton}
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', background: '#ef4444', border: 'none', cursor: 'pointer' }}
+                        >
+                          <Trash2 size={14} /> Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

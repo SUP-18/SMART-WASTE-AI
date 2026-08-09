@@ -309,6 +309,24 @@ export async function updateReport(id, updateFields) {
   }
 }
 
+export async function deleteReport(id) {
+  if (isSupabaseConfigured()) {
+    // Delete related upvotes and notifications first
+    await supabase.from('upvotes').delete().eq('reportid', id);
+    await supabase.from('notifications').delete().eq('reportid', id);
+    const { error } = await supabase.from('reports').delete().eq('id', id);
+    if (error) {
+      console.error('Supabase deleteReport error:', error);
+      throw error;
+    }
+  } else {
+    const db = getSqliteDb();
+    db.prepare('DELETE FROM upvotes WHERE reportId = ?').run(id);
+    db.prepare('DELETE FROM notifications WHERE reportId = ?').run(id);
+    db.prepare('DELETE FROM reports WHERE id = ?').run(id);
+  }
+}
+
 // -------------------------------------------------------------
 // NOTIFICATION OPERATIONS
 // -------------------------------------------------------------

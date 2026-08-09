@@ -54,9 +54,9 @@ export default function ReportPage() {
     }
   };
 
-  const analyzeImagePixels = (dataUrl) => {
+  const analyzeImageColors = (dataUrl) => {
     return new Promise((resolve) => {
-      if (!dataUrl) return resolve({ plantRatio: 0, fruitRatio: 0 });
+      if (!dataUrl) return resolve({ isLikelyNonWaste: false });
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.src = dataUrl;
@@ -64,37 +64,68 @@ export default function ReportPage() {
         try {
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
-          canvas.width = 64;
-          canvas.height = 64;
-          ctx.drawImage(img, 0, 0, 64, 64);
-          const imageData = ctx.getImageData(0, 0, 64, 64);
+          const size = 48;
+          canvas.width = size;
+          canvas.height = size;
+          ctx.drawImage(img, 0, 0, size, size);
+          const imageData = ctx.getImageData(0, 0, size, size);
           const pixels = imageData.data;
+          const total = size * size;
 
-          let plantPixels = 0;
-          let fruitPixels = 0;
-          const totalPixels = 64 * 64;
+          let vividGreen = 0;   // bright saturated green (plants/nature)
+          let skinTone = 0;     // human skin colors  
+          let brightVivid = 0;  // vivid saturated colors (fruits, flowers)
+          let urbanGray = 0;    // grays, concrete, asphalt
+          let darkDirty = 0;    // dark browns, blacks (waste/dirt)
+          let bluesky = 0;      // bright blue sky pixels
 
           for (let i = 0; i < pixels.length; i += 4) {
-            const r = pixels[i];
-            const g = pixels[i + 1];
-            const b = pixels[i + 2];
+            const r = pixels[i], g = pixels[i+1], b = pixels[i+2];
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            const sat = max === 0 ? 0 : (max - min) / max;
+            const brightness = (r + g + b) / 3;
 
-            // Green foliage/plants
-            if (g > r + 15 && g > b + 15 && g > 60) {
-              plantPixels++;
-            }
-            // Tomatoes / Red fruits / Flowers on plants
-            if (r > 130 && g > 70 && b < 100 && (r - b) > 50) {
-              fruitPixels++;
-            }
+            // Vivid saturated green (foliage, not olive/dark green of bins)
+            if (g > 100 && g > r * 1.4 && g > b * 1.3 && sat > 0.35) vividGreen++;
+
+            // Skin tones (selfies, people)
+            if (r > 140 && g > 100 && b > 70 && r > g && g > b && sat < 0.45 && brightness > 100) skinTone++;
+
+            // Bright vivid non-gray (fruits, flowers, colorful objects)
+            if (sat > 0.55 && brightness > 120 && (r > 180 || g > 180) && !(g > r * 1.2 && b < g * 0.6)) brightVivid++;
+
+            // Urban gray (concrete, metal, road)
+            if (sat < 0.15 && brightness > 60 && brightness < 200) urbanGray++;
+
+            // Dark dirty tones (waste, trash, muddy)
+            if (brightness < 80 && sat < 0.3) darkDirty++;
+            
+            // Blue sky
+            if (b > 150 && b > r * 1.3 && b > g * 1.1 && sat > 0.2) bluesky++;
           }
 
-          resolve({ plantRatio: plantPixels / totalPixels, fruitRatio: fruitPixels / totalPixels });
+          const greenR = vividGreen / total;
+          const skinR = skinTone / total;
+          const vividR = brightVivid / total;
+          const urbanR = urbanGray / total;
+          const dirtyR = darkDirty / total;
+          const skyR = bluesky / total;
+
+          // Nature/food scene: lots of vivid green + bright vivid colors, low urban tones
+          const isNature = greenR > 0.30 && vividR > 0.08 && urbanR < 0.15 && dirtyR < 0.15;
+          // Selfie/person: significant skin tones
+          const isSelfie = skinR > 0.25;
+          // Food/fruit: vivid colors dominate, no urban context
+          const isFood = vividR > 0.25 && greenR > 0.15 && urbanR < 0.10;
+          // Scenic outdoor (just sky and nature)
+          const isScenic = greenR > 0.20 && skyR > 0.15 && urbanR < 0.10 && dirtyR < 0.10;
+
+          resolve({ isLikelyNonWaste: isNature || isSelfie || isFood || isScenic });
         } catch (e) {
-          resolve({ plantRatio: 0, fruitRatio: 0 });
+          resolve({ isLikelyNonWaste: false });
         }
       };
-      img.onerror = () => resolve({ plantRatio: 0, fruitRatio: 0 });
+      img.onerror = () => resolve({ isLikelyNonWaste: false });
     });
   };
 
@@ -102,18 +133,22 @@ export default function ReportPage() {
     setLoading(true);
     const fileName = image?.name?.toLowerCase() || '';
     
+    // Filename-based non-waste detection
     const nonWasteKeywords = [
       'tomato', 'fruit', 'vegetable', 'plant', 'crop', 'flower', 'garden',
       'selfie', 'person', 'face', 'cat', 'dog', 'pet', 'food', 'dish',
-      'car', 'vehicle', 'laptop', 'phone', 'book', 'toy', 'shirt', 'cloth'
+      'recipe', 'cooking', 'meal', 'cake', 'pizza',
+      'car', 'vehicle', 'laptop', 'phone', 'book', 'toy', 'shirt', 'cloth',
+      'sunset', 'sunrise', 'beach', 'mountain', 'holiday', 'vacation',
+      'wedding', 'birthday', 'party', 'baby', 'family'
     ];
     
     const isNonWasteFile = nonWasteKeywords.some(kw => fileName.includes(kw));
-    const { plantRatio, fruitRatio } = await analyzeImagePixels(imagePreview);
+    const { isLikelyNonWaste } = await analyzeImageColors(imagePreview);
 
     let detectedCategory = '';
 
-    if (isNonWasteFile || (plantRatio + fruitRatio) > 0.25) {
+    if (isNonWasteFile || isLikelyNonWaste) {
       detectedCategory = 'Unrecognized';
     } else if (fileName.includes('water') || fileName.includes('leak') || fileName.includes('pipe') || fileName.includes('flood') || fileName.includes('sewer') || fileName.includes('drain')) {
       detectedCategory = 'Water Leakage';
@@ -128,6 +163,7 @@ export default function ReportPage() {
     } else if (fileName.includes('bin') || fileName.includes('trash') || fileName.includes('garbage') || fileName.includes('overflow') || fileName.includes('dustbin') || fileName.includes('waste')) {
       detectedCategory = 'Overflowing Bin';
     } else {
+      // For generic camera filenames (IMG_xxx, DSC_xxx etc.), allow through as Overflowing Bin
       detectedCategory = 'Overflowing Bin';
     }
 

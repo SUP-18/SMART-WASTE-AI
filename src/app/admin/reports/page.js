@@ -5,7 +5,7 @@ import Link from 'next/link';
 import AdminLayout from '@/components/AdminLayout';
 import styles from './reports.module.css';
 import adminStyles from '../admin.module.css';
-import { Eye, Search, Filter } from 'lucide-react';
+import { Eye, Search, Filter, Trash2 } from 'lucide-react';
 
 export default function AdminReports() {
   const [reports, setReports] = useState([]);
@@ -43,6 +43,21 @@ export default function AdminReports() {
     setStatusFilter('All');
     setCategoryFilter('All');
     setPriorityFilter('All');
+  };
+
+  const handleDelete = async (reportId) => {
+    if (!confirm('Are you sure you want to delete this report? This action cannot be undone.')) return;
+    try {
+      const res = await fetch(`/api/reports/${reportId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setReports(prev => prev.filter(r => r.id !== reportId));
+      } else {
+        alert('Failed to delete report');
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('Error deleting report');
+    }
   };
 
   const getCategoryIcon = (category) => {
@@ -159,9 +174,18 @@ export default function AdminReports() {
                   <td data-label="Upvotes">👍 {report.upvoteCount || 0}</td>
                   <td data-label="Date">{report.createdAt ? new Date(report.createdAt).toLocaleDateString() : 'N/A'}</td>
                   <td data-label="Actions">
-                    <Link href={`/admin/reports/${report.id}`} className={adminStyles.actionButton} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>
-                      <Eye size={14} /> View
-                    </Link>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <Link href={`/admin/reports/${report.id}`} className={adminStyles.actionButton} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>
+                        <Eye size={14} /> View
+                      </Link>
+                      <button 
+                        onClick={() => handleDelete(report.id)} 
+                        className={adminStyles.actionButton}
+                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', background: '#ef4444', border: 'none', cursor: 'pointer' }}
+                      >
+                        <Trash2 size={14} /> Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
