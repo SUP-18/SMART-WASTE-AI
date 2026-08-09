@@ -95,7 +95,10 @@ export default function Navbar() {
   }
 
   const formatTimeAgo = (dateString) => {
+    if (!dateString) return 'Just now';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Just now';
+    
     const now = new Date();
     const diffInSeconds = Math.floor((now - date) / 1000);
     
