@@ -130,12 +130,18 @@ export default function ReportPage() {
           // Screen/Document (mostly pure black or pure white)
           const isScreen = darkR > 0.50 || whiteR > 0.50;
 
-          resolve({ isLikelyNonWaste: isNature || isSelfie || isFood || isScenic || isScreen });
+          // Must have at least some concrete/asphalt/dirt to be considered a street scene
+          const hasWasteSignatures = urbanR > 0.10 || dirtyR > 0.10;
+
+          resolve({ 
+            isLikelyNonWaste: isNature || isSelfie || isFood || isScenic || isScreen,
+            hasWasteSignatures 
+          });
         } catch (e) {
-          resolve({ isLikelyNonWaste: false });
+          resolve({ isLikelyNonWaste: false, hasWasteSignatures: true });
         }
       };
-      img.onerror = () => resolve({ isLikelyNonWaste: false });
+      img.onerror = () => resolve({ isLikelyNonWaste: false, hasWasteSignatures: true });
     });
   };
 
@@ -151,11 +157,12 @@ export default function ReportPage() {
       'car', 'vehicle', 'laptop', 'phone', 'book', 'toy', 'shirt', 'cloth',
       'sunset', 'sunrise', 'beach', 'mountain', 'holiday', 'vacation',
       'wedding', 'birthday', 'party', 'baby', 'family',
-      'screenshot', 'screen', 'capture', 'desktop', 'code', 'editor'
+      'screenshot', 'screen', 'capture', 'desktop', 'code', 'editor',
+      'graph', 'chart', 'slide', 'presentation', 'dashboard', 'analytics'
     ];
     
     const isNonWasteFile = nonWasteKeywords.some(kw => fileName.includes(kw));
-    const { isLikelyNonWaste } = await analyzeImageColors(imagePreview);
+    const { isLikelyNonWaste, hasWasteSignatures } = await analyzeImageColors(imagePreview);
 
     let detectedCategory = '';
 
@@ -174,8 +181,12 @@ export default function ReportPage() {
     } else if (fileName.includes('bin') || fileName.includes('trash') || fileName.includes('garbage') || fileName.includes('overflow') || fileName.includes('dustbin') || fileName.includes('waste')) {
       detectedCategory = 'Overflowing Bin';
     } else {
-      // For generic camera filenames (IMG_xxx, DSC_xxx etc.), allow through as Overflowing Bin
-      detectedCategory = 'Overflowing Bin';
+      // For generic filenames, allow through only if it actually looks like a street scene
+      if (hasWasteSignatures) {
+        detectedCategory = 'Overflowing Bin';
+      } else {
+        detectedCategory = 'Unrecognized';
+      }
     }
 
     const randomConf = detectedCategory === 'Unrecognized' ? 0 : Math.floor(Math.random() * (96 - 88 + 1) + 88);
