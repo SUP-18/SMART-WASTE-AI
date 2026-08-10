@@ -157,10 +157,11 @@ export default function ReportPage() {
           const isSoftNonWaste = (isNature || isSelfie || isFood || isScenic) && !hasWasteSignatures;
 
           resolve({ 
-            isLikelyNonWaste: isDefinitelyNotWaste || isSoftNonWaste
+            isLikelyNonWaste: isDefinitelyNotWaste || isSoftNonWaste,
+            dominantSignature: { urbanR, dirtyR, blueObjR, brownR, whiteR }
           });
         } catch (e) {
-          resolve({ isLikelyNonWaste: false });
+          resolve({ isLikelyNonWaste: false, dominantSignature: null });
         }
       };
       img.onerror = () => resolve({ isLikelyNonWaste: false });
@@ -184,7 +185,7 @@ export default function ReportPage() {
     ];
     
     const isNonWasteFile = nonWasteKeywords.some(kw => fileName.includes(kw));
-    const { isLikelyNonWaste } = await analyzeImageColors(imagePreview);
+    const { isLikelyNonWaste, dominantSignature } = await analyzeImageColors(imagePreview);
 
     let detectedCategory = '';
 
@@ -203,8 +204,20 @@ export default function ReportPage() {
     } else if (fileName.includes('bin') || fileName.includes('trash') || fileName.includes('garbage') || fileName.includes('overflow') || fileName.includes('dustbin') || fileName.includes('waste')) {
       detectedCategory = 'Overflowing Bin';
     } else {
-      // Image passed the non-waste pixel check, so it has waste signatures - accept it
-      detectedCategory = 'Overflowing Bin';
+      // Use color signatures to guess the most likely category
+      if (dominantSignature) {
+        if (dominantSignature.brownR > 0.15 || dominantSignature.whiteR > 0.20) {
+          detectedCategory = 'Water Leakage'; // High mud/brown or water splash/white
+        } else if (dominantSignature.urbanR > 0.25) {
+          detectedCategory = 'Pothole'; // Mostly asphalt/concrete
+        } else if (dominantSignature.blueObjR > 0.05 || dominantSignature.dirtyR > 0.15) {
+          detectedCategory = 'Overflowing Bin'; // Blue bins or lots of dark dirt
+        } else {
+          detectedCategory = 'Street Waste'; // Default street scene
+        }
+      } else {
+        detectedCategory = 'Overflowing Bin';
+      }
     }
 
     const randomConf = detectedCategory === 'Unrecognized' ? 0 : Math.floor(Math.random() * (96 - 88 + 1) + 88);
