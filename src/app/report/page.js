@@ -143,7 +143,8 @@ export default function ReportPage() {
           // Scenic outdoor (just sky and nature)
           const isScenic = greenR > 0.20 && skyR > 0.15 && urbanR < 0.10 && dirtyR < 0.10;
           // Screen/Document: pure dark/white OR dark-themed colorful UI (charts, dashboards)
-          const isScreen = darkR > 0.50 || whiteR > 0.50 || satDarkR > 0.40;
+          // Lowered thresholds to 0.30 to catch dark studio/stock photos (e.g. AI/robot concepts)
+          const isScreen = darkR > 0.30 || whiteR > 0.35 || satDarkR > 0.30;
 
           // Waste signatures: concrete/asphalt, dark dirt, blue bins/bags, brown cardboard/soil
           const hasWasteSignatures = urbanR > 0.08 || dirtyR > 0.08 || blueObjR > 0.05 || brownR > 0.08;
@@ -181,7 +182,8 @@ export default function ReportPage() {
       'sunset', 'sunrise', 'beach', 'mountain', 'holiday', 'vacation',
       'wedding', 'birthday', 'party', 'baby', 'family',
       'screenshot', 'screen', 'capture', 'desktop', 'code', 'editor',
-      'graph', 'chart', 'slide', 'presentation', 'dashboard', 'analytics'
+      'graph', 'chart', 'slide', 'presentation', 'dashboard', 'analytics',
+      'robot', 'ai', 'tech', 'globe', 'digital', 'abstract', 'art', 'graphic', 'design', 'cyber'
     ];
     
     const isNonWasteFile = nonWasteKeywords.some(kw => fileName.includes(kw));
