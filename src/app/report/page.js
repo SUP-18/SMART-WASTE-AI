@@ -80,6 +80,9 @@ export default function ReportPage() {
           let bluesky = 0;      // bright blue sky pixels
           let pureDark = 0;     // pure black/very dark (terminal, dark mode)
           let pureWhite = 0;    // pure white (documents, light mode)
+          let blueObject = 0;   // blue bins, bags, tarps
+          let brownTan = 0;     // cardboard, soil, mud, sandy ground
+          let saturatedDark = 0; // dark but colorful (chart/app backgrounds)
 
           for (let i = 0; i < pixels.length; i += 4) {
             const r = pixels[i], g = pixels[i+1], b = pixels[i+2];
@@ -105,9 +108,18 @@ export default function ReportPage() {
             // Blue sky
             if (b > 150 && b > r * 1.3 && b > g * 1.1 && sat > 0.2) bluesky++;
             
-            // Screen/Document
+            // Screen/Document: pure black or pure white
             if (brightness < 35 && sat < 0.15) pureDark++;
             if (brightness > 240 && sat < 0.1) pureWhite++;
+            
+            // Blue objects (bins, bags, tarps - medium blue, not sky-bright)
+            if (b > 80 && b > r * 1.3 && b > g * 1.1 && sat > 0.2 && brightness > 40 && brightness < 180) blueObject++;
+            
+            // Brown/tan/beige (cardboard, soil, mud, sandy ground)
+            if (r > g && g > b && r > 80 && sat > 0.08 && sat < 0.55 && brightness > 50 && brightness < 190) brownTan++;
+            
+            // Saturated dark (chart/app dark-themed backgrounds)
+            if (brightness < 80 && sat > 0.3) saturatedDark++;
           }
 
           const greenR = vividGreen / total;
@@ -118,6 +130,9 @@ export default function ReportPage() {
           const skyR = bluesky / total;
           const darkR = pureDark / total;
           const whiteR = pureWhite / total;
+          const blueObjR = blueObject / total;
+          const brownR = brownTan / total;
+          const satDarkR = saturatedDark / total;
 
           // Nature/food scene: lots of vivid green + bright vivid colors, low urban tones
           const isNature = greenR > 0.30 && vividR > 0.08 && urbanR < 0.15 && dirtyR < 0.15;
@@ -127,11 +142,11 @@ export default function ReportPage() {
           const isFood = vividR > 0.25 && greenR > 0.15 && urbanR < 0.10;
           // Scenic outdoor (just sky and nature)
           const isScenic = greenR > 0.20 && skyR > 0.15 && urbanR < 0.10 && dirtyR < 0.10;
-          // Screen/Document (mostly pure black or pure white)
-          const isScreen = darkR > 0.50 || whiteR > 0.50;
+          // Screen/Document: pure dark/white OR dark-themed colorful UI (charts, dashboards)
+          const isScreen = darkR > 0.50 || whiteR > 0.50 || satDarkR > 0.40;
 
-          // Must have at least some concrete/asphalt/dirt to be considered a street scene
-          const hasWasteSignatures = urbanR > 0.10 || dirtyR > 0.10;
+          // Waste signatures: concrete/asphalt, dark dirt, blue bins/bags, brown cardboard/soil
+          const hasWasteSignatures = urbanR > 0.08 || dirtyR > 0.08 || blueObjR > 0.05 || brownR > 0.08;
 
           resolve({ 
             isLikelyNonWaste: isNature || isSelfie || isFood || isScenic || isScreen,
