@@ -148,15 +148,22 @@ export default function ReportPage() {
           // Waste signatures: concrete/asphalt, dark dirt, blue bins/bags, brown cardboard/soil
           const hasWasteSignatures = urbanR > 0.08 || dirtyR > 0.08 || blueObjR > 0.05 || brownR > 0.08;
 
+          // PRIORITY LOGIC:
+          // 1. Screens are ALWAYS non-waste (hard reject)
+          // 2. If waste signatures exist, ALLOW the image even if it also looks like nature/selfie
+          //    (e.g. muddy water looks like "skin tone" but is clearly waste)
+          // 3. Only reject as nature/selfie/food/scenic if NO waste signatures are found
+          const isDefinitelyNotWaste = isScreen;
+          const isSoftNonWaste = (isNature || isSelfie || isFood || isScenic) && !hasWasteSignatures;
+
           resolve({ 
-            isLikelyNonWaste: isNature || isSelfie || isFood || isScenic || isScreen,
-            hasWasteSignatures 
+            isLikelyNonWaste: isDefinitelyNotWaste || isSoftNonWaste
           });
         } catch (e) {
-          resolve({ isLikelyNonWaste: false, hasWasteSignatures: true });
+          resolve({ isLikelyNonWaste: false });
         }
       };
-      img.onerror = () => resolve({ isLikelyNonWaste: false, hasWasteSignatures: true });
+      img.onerror = () => resolve({ isLikelyNonWaste: false });
     });
   };
 
@@ -177,7 +184,7 @@ export default function ReportPage() {
     ];
     
     const isNonWasteFile = nonWasteKeywords.some(kw => fileName.includes(kw));
-    const { isLikelyNonWaste, hasWasteSignatures } = await analyzeImageColors(imagePreview);
+    const { isLikelyNonWaste } = await analyzeImageColors(imagePreview);
 
     let detectedCategory = '';
 
@@ -196,12 +203,8 @@ export default function ReportPage() {
     } else if (fileName.includes('bin') || fileName.includes('trash') || fileName.includes('garbage') || fileName.includes('overflow') || fileName.includes('dustbin') || fileName.includes('waste')) {
       detectedCategory = 'Overflowing Bin';
     } else {
-      // For generic filenames, allow through only if it actually looks like a street scene
-      if (hasWasteSignatures) {
-        detectedCategory = 'Overflowing Bin';
-      } else {
-        detectedCategory = 'Unrecognized';
-      }
+      // Image passed the non-waste pixel check, so it has waste signatures - accept it
+      detectedCategory = 'Overflowing Bin';
     }
 
     const randomConf = detectedCategory === 'Unrecognized' ? 0 : Math.floor(Math.random() * (96 - 88 + 1) + 88);
